@@ -1,0 +1,732 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>[hidden]{display:none!important}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style></head><body><title>Rome à pied</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout : une colonne pour téléphone. Barre d'état collante, fiche du lieu en cours, puis listes (autour de vous, par jour). Inspiration : bronze patiné des fontaines romaines et inscriptions en capitales. */
+:root{
+  --bg:#F1F3F0; --surface:#FFFFFF; --surface-2:#E7ECE8; --fg:#18221E; --muted:#56635D; --line:#D2DAD5;
+  --accent:#21705E; --accent-fg:#FFFFFF; --accent-soft:#DCEBE5;
+  --warn:#8A5D00; --warn-soft:#F5EACB; --bad:#A23A2B; --bad-soft:#F5DDD8;
+  --font-body: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --radius: 14px;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0F1412; --surface:#171E1B; --surface-2:#1F2824; --fg:#E5ECE8; --muted:#9BA9A3; --line:#2B3632;
+  --accent:#5EC2AA; --accent-fg:#06221B; --accent-soft:#163129;
+  --warn:#E5B64C; --warn-soft:#352B12; --bad:#F08B7B; --bad-soft:#3A1D19; color-scheme:dark; } }
+:root[data-theme="dark"]{
+  --bg:#0F1412; --surface:#171E1B; --surface-2:#1F2824; --fg:#E5ECE8; --muted:#9BA9A3; --line:#2B3632;
+  --accent:#5EC2AA; --accent-fg:#06221B; --accent-soft:#163129;
+  --warn:#E5B64C; --warn-soft:#352B12; --bad:#F08B7B; --bad-soft:#3A1D19; color-scheme:dark; }
+*{box-sizing:border-box}
+html,body{background:var(--bg)}
+body{color:var(--fg);font-family:var(--font-body);font-size:16px;line-height:1.55;margin:0;-webkit-text-size-adjust:100%}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+.wrap{max-width:680px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 48px;display:flex;flex-direction:column;gap:16px}
+header.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+header.bar .in{max-width:680px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.brand{font-family:var(--font-display);font-size:1.25rem;letter-spacing:.02em;margin:0;flex:1 1 auto}
+.brand small{display:block;font-family:var(--font-body);font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:.8rem;font-weight:600;padding:5px 10px;border-radius:999px;background:var(--surface-2);color:var(--muted);white-space:nowrap}
+.chip .dot{width:8px;height:8px;border-radius:50%;background:currentColor}
+.chip.ok{background:var(--accent-soft);color:var(--accent)}
+.chip.warn{background:var(--warn-soft);color:var(--warn)}
+.chip.bad{background:var(--bad-soft);color:var(--bad)}
+.modechip{appearance:none;border:1px solid var(--line);font-family:inherit;cursor:pointer;min-height:32px}
+.modechip[data-mode="lecture"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:var(--surface-2);padding:4px;border-radius:12px}
+.segbtn{appearance:none;border:0;background:transparent;color:var(--fg);font:inherit;font-weight:600;font-size:.9rem;line-height:1.25;padding:10px 8px;border-radius:9px;cursor:pointer;min-height:48px}
+.segbtn[aria-checked="true"]{background:var(--surface);box-shadow:0 0 0 1px var(--line);color:var(--accent)}
+.segbtn:focus-visible,.modechip:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.silent{margin:0;font-size:.85em;color:var(--muted);background:var(--surface-2);border-radius:10px;padding:8px 10px}
+.eyebrow{font-family:var(--font-display);font-size:.74rem;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin:0}
+h2{font-family:var(--font-display);font-weight:600;font-size:1.15rem;margin:0;text-wrap:balance}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.start p{margin:0;color:var(--muted)}
+.btn{appearance:none;border:1px solid var(--line);background:var(--surface);color:var(--fg);font:inherit;font-weight:600;font-size:.95rem;padding:10px 14px;border-radius:12px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;min-height:44px}
+.btn.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.btn.big{font-size:1.05rem;padding:14px 18px;width:100%}
+.btn:focus-visible,.item:focus-visible,select:focus-visible,summary:focus-visible,.tab:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row > .btn{flex:1 1 auto}
+.toggles{display:flex;gap:16px;flex-wrap:wrap;font-size:.92rem}
+.toggles label{display:inline-flex;align-items:center;gap:8px;min-height:32px}
+input[type=checkbox]{width:20px;height:20px;accent-color:var(--accent)}
+.notice{border-radius:12px;padding:12px 14px;font-size:.92rem;margin:0}
+.notice.warn{background:var(--warn-soft);color:var(--fg);border:1px solid var(--warn)}
+.notice.bad{background:var(--bad-soft);color:var(--fg);border:1px solid var(--bad)}
+.notice.ok{background:var(--accent-soft);color:var(--fg);border:1px solid var(--accent)}
+.notice strong{display:block;margin-bottom:2px}
+/* Fiche */
+.fiche{border-color:var(--accent);box-shadow:0 1px 0 var(--line);scroll-margin-top:calc(env(safe-area-inset-top,0px) + 84px);font-size:calc(16px * var(--fs,1));line-height:1.6}
+.fiche .name{font-family:var(--font-display);font-size:1.65em;line-height:1.15;margin:0;text-wrap:balance}
+.fiche .sub{margin:0;color:var(--muted);font-style:italic}
+.fiche .lead{margin:0;font-size:1.04em}
+.fiche h3{font-family:var(--font-display);font-size:.8em;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin:6px 0 0}
+.fiche p.para{margin:0;max-width:65ch}
+.fiche ul{margin:0;padding-left:1.15em;display:flex;flex-direction:column;gap:8px;max-width:65ch}
+.links{display:flex;gap:8px;flex-wrap:wrap}
+.links a{font-size:.9rem}
+.queue{display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap;background:var(--accent-soft);border-radius:12px;padding:10px 12px;font-size:.92rem}
+/* Listes */
+.list{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);overflow:hidden}
+.item{appearance:none;background:none;border:0;border-bottom:1px solid var(--line);text-align:left;font:inherit;color:inherit;padding:12px 14px;display:grid;grid-template-columns:1fr auto;gap:2px 12px;cursor:pointer;min-height:56px}
+.item:last-child{border-bottom:0}
+.item .t{font-weight:600;min-width:0}
+.item .s{grid-column:1;color:var(--muted);font-size:.86rem;min-width:0}
+.item .d{grid-row:1 / span 2;grid-column:2;align-self:center;text-align:right;font-variant-numeric:tabular-nums;font-size:.86rem;color:var(--muted);white-space:nowrap}
+.item .d b{display:block;color:var(--fg);font-size:.95rem}
+.item.heard .t::after{content:" \2713";color:var(--accent)}
+.item.near{background:var(--accent-soft)}
+.tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+.tab{appearance:none;border:1px solid var(--line);background:var(--surface);color:var(--fg);font:inherit;font-size:.88rem;font-weight:600;padding:8px 12px;border-radius:999px;white-space:nowrap;cursor:pointer;min-height:40px}
+.tab[aria-selected="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+details.settings{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:4px 16px}
+details.settings summary{cursor:pointer;font-weight:600;padding:12px 0;min-height:44px}
+.grid{display:grid;grid-template-columns:1fr;gap:12px;padding-bottom:14px}
+.field{display:flex;flex-direction:column;gap:4px;font-size:.9rem}
+select{font:inherit;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--fg);min-height:44px;max-width:100%}
+.foot{font-size:.8rem;color:var(--muted);margin:0}
+.small{font-size:.85rem;color:var(--muted);margin:0}
+.wikibody{display:flex;flex-direction:column;gap:12px}
+.wikibody section{display:flex;flex-direction:column;gap:10px;scroll-margin-top:calc(env(safe-area-inset-top,0px) + 84px)}
+.wikibody h4{font-family:var(--font-display);font-size:1em;margin:4px 0 0;color:var(--fg)}
+.wikibody section.anec{background:var(--accent-soft);border-radius:12px;padding:12px}
+.badge{display:inline-block;font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:middle}
+.count{font-size:.85rem;color:var(--muted);margin:0}
+@media (prefers-reduced-motion: no-preference){ .fiche.pop{animation:pop .5s ease-out} @keyframes pop{from{transform:translateY(6px);opacity:.6}to{transform:none;opacity:1}} }
+</style>
+
+<header class="bar"><div class="in">
+  <h1 class="brand"><small>Roma, 22 au 26 novembre</small>Rome à pied</h1>
+  <button id="modeBtn" class="chip modechip" type="button" data-mode="voix">Mode voix</button>
+  <span id="gps" class="chip"><span class="dot"></span><span id="gpsTxt">GPS arrêté</span></span>
+</div></header>
+
+<main class="wrap">
+  <div style="height:4px"></div>
+
+  <section id="startCard" class="card start" aria-labelledby="startTitle">
+    <p class="eyebrow">Guide qui parle quand vous passez devant</p>
+    <h2 id="startTitle">Démarrez avant de sortir</h2>
+    <p>À moins de 50 mètres environ d'un lieu du programme ou d'un monument repéré autour de vous (églises, palais, fontaines, obélisques, ruines...), le téléphone vibre et la fiche complète s'affiche à l'écran. En mode voix, elle est aussi lue à voix haute. Gardez l'écran allumé et la page ouverte.</p>
+    <div class="seg" role="radiogroup" aria-label="Mode de lecture">
+      <button type="button" class="segbtn" role="radio" data-mode="voix" aria-checked="true">Voix et texte</button>
+      <button type="button" class="segbtn" role="radio" data-mode="lecture" aria-checked="false">Texte seul, silencieux</button>
+    </div>
+    <div class="toggles">
+      <label><input type="checkbox" id="optCulte"> Silence dans les églises</label>
+      <label><input type="checkbox" id="optVib"> Vibration</label>
+    </div>
+    <button id="btnStart" class="btn primary big" type="button">Démarrer la balade</button>
+    <p id="startNote" class="small"></p>
+  </section>
+
+  <p id="geoMsg" class="notice" hidden></p>
+
+  <div id="queueBar" class="queue" hidden>
+    <span id="queueTxt"></span>
+    <button id="btnNext" class="btn" type="button">Écouter maintenant</button>
+  </div>
+
+  <article id="fiche" class="card fiche" hidden aria-live="polite">
+    <p class="eyebrow" id="fEyebrow"></p>
+    <h2 class="name" id="fName"></h2>
+    <p class="sub" id="fSub"></p>
+    <p class="silent" id="fSilent" hidden></p>
+    <div class="row">
+      <button id="btnSpeak" class="btn primary" type="button">Écouter</button>
+      <button id="btnClose" class="btn" type="button">Fermer</button>
+    </div>
+    <div id="fCur" style="display:flex;flex-direction:column;gap:12px">
+      <p class="lead" id="fBref"></p>
+      <h3>Histoire</h3>
+      <div id="fHist" style="display:flex;flex-direction:column;gap:10px"></div>
+      <h3>Anecdotes</h3>
+      <ul id="fAnec"></ul>
+      <h3>À regarder</h3>
+      <ul id="fLook"></ul>
+      <button id="btnFull" class="btn" type="button">Lire aussi l'article Wikipédia complet</button>
+    </div>
+    <div id="fArt" class="wikibody" hidden>
+      <p id="wStatus" class="small"></p>
+      <nav id="wToc" class="tabs" aria-label="Sections de l'article"></nav>
+      <div id="wBody"></div>
+      <p id="wAttr" class="small"></p>
+    </div>
+    <div class="links">
+      <a id="fMaps" class="btn" target="_blank" rel="noopener">Itinéraire à pied</a>
+      <a id="fWiki" class="btn" target="_blank" rel="noopener">Pour aller plus loin</a>
+    </div>
+  </article>
+
+  <section id="nearSec" hidden aria-labelledby="nearTitle" style="display:flex;flex-direction:column;gap:8px">
+    <h2 id="nearTitle">Autour de vous</h2>
+    <p id="liveCount" class="count"></p>
+    <div id="nearList" class="list"></div>
+  </section>
+
+  <section aria-labelledby="dayTitle" style="display:flex;flex-direction:column;gap:8px">
+    <h2 id="dayTitle">Les lieux, jour par jour</h2>
+    <div class="tabs" role="tablist" id="tabs"></div>
+    <div id="dayList" class="list" role="tabpanel"></div>
+  </section>
+
+  <details class="settings" id="settings">
+    <summary>Réglages</summary>
+    <div class="grid">
+      <label class="field">Alertes pour les autres monuments (hors programme)
+        <select id="optLevel">
+          <option value="20">Monuments majeurs seulement</option>
+          <option value="10">Monuments importants (conseillé)</option>
+          <option value="0">Tous les monuments (très fréquent dans le centre)</option>
+          <option value="-1">Aucune, liste seulement</option>
+        </select>
+      </label>
+      <label class="field">Distance de déclenchement
+        <select id="optRadius">
+          <option value="1">Normale (environ 30 à 70 m selon le lieu)</option>
+          <option value="1.5">Large (x 1,5)</option>
+          <option value="2">Très large (x 2)</option>
+        </select>
+      </label>
+      <label class="field">Vitesse de lecture
+        <select id="optRate">
+          <option value="0.9">Lente</option>
+          <option value="1">Normale</option>
+          <option value="1.1">Rapide</option>
+          <option value="1.25">Très rapide</option>
+        </select>
+      </label>
+      <label class="field">Taille du texte des fiches
+        <select id="optSize">
+          <option value="1">Normale</option>
+          <option value="1.15">Grande</option>
+          <option value="1.3">Très grande</option>
+        </select>
+      </label>
+      <label class="field">Voix
+        <select id="optVoice"><option value="">Voix française par défaut</option></select>
+      </label>
+      <div class="row">
+        <button id="btnTest" class="btn" type="button">Tester un déclenchement</button>
+        <button id="btnReset" class="btn" type="button">Remettre à zéro les lieux écoutés</button>
+      </div>
+      <p id="resetConfirm" class="small" hidden>Les lieux déjà écoutés pourront se déclencher à nouveau. <button id="btnResetYes" class="btn" type="button">Confirmer</button></p>
+      <p class="small" id="wakeTxt"></p>
+    </div>
+  </details>
+
+  <p class="foot">Lieux du programme : coordonnées Wikidata (22/11/2026), textes rédigés par Claude. Autres monuments : détectés en direct sur Wikidata autour de votre position ; textes de Wikipédia en français affichés tels quels (licence CC BY-SA 4.0, lien vers chaque article). Connexion internet nécessaire pour ces monuments. Horaires et accès à vérifier sur place.</p>
+</main>
+
+<script>
+(function(){
+'use strict';
+var POIS = [{"id":"braschi","nom":"Palais Braschi","sous":"Le dernier palais construit pour la famille d'un pape","jour":"dim","lat":41.896921,"lng":12.472829,"r":40,"wiki":"Palais Braschi","bref":"Le grand palais qui borde la place San Pantaleo, au pied de votre hôtel, abrite aujourd'hui le Musée de Rome.","histoire":["Il a été bâti à la fin du 18e siècle par l'architecte Cosimo Morelli pour les neveux du pape Pie VI, Giovanni Angelo Braschi. C'est le dernier palais élevé à Rome pour la famille d'un pape, à une époque où le népotisme restait la règle : chaque pontife enrichissait les siens.","Pie VI a connu une fin tragique. Fait prisonnier par les troupes françaises de Bonaparte, il est mort en exil à Valence, dans la Drôme, en 1799. Le palais a ensuite changé plusieurs fois de mains et d'usage. Depuis 1952, il accueille le Musée de Rome, consacré à la vie de la ville du Moyen Âge au 20e siècle."],"anecdotes":["En 1934, lors du plébiscite fasciste, sa façade a été couverte d'un immense portrait de Mussolini entouré de centaines de « SI ». Le palais était alors le siège de la fédération fasciste de Rome. La photo a fait le tour du monde.","Après la guerre, le palais a servi d'abri à des familles sinistrées, ce qui l'a durement abîmé avant sa restauration.","La statue mutilée à l'angle nord du palais est Pasquino, la plus célèbre « statue parlante » de Rome."],"regarder":["Le grand escalier d'honneur, visible depuis l'entrée du musée.","En face, la façade néoclassique de la petite église San Pantaleo."]},{"id":"pasquino","nom":"Pasquino","sous":"La statue qui se moquait des papes","jour":"dim","lat":41.897722,"lng":12.472306,"r":30,"wiki":"Pasquino","bref":"Ce torse mutilé posé à l'angle du palais Braschi est la plus célèbre des « statues parlantes » de Rome.","histoire":["Il s'agit d'un fragment très abîmé d'un groupe sculpté de l'époque hellénistique, qui représentait probablement Ménélas soutenant le corps de Patrocle, une scène de la guerre de Troie. Il a été retrouvé en 1501 lors de travaux dans la rue, et le cardinal Oliviero Carafa l'a fait installer ici.","Très vite, les Romains ont pris l'habitude d'y accrocher la nuit des vers anonymes qui se moquaient des papes, des cardinaux et des puissants. On les appelait les « pasquinades », un mot passé tel quel en français. D'autres statues ont rejoint ce club des statues parlantes : Marforio au Capitole, Madame Lucrèce près de la place de Venise, l'abbé Luigi, le Facchino et le Babuino."],"anecdotes":["La pasquinade la plus célèbre vise le pape Urbain VIII Barberini, qui fit enlever les bronzes du portique du Panthéon : « Quod non fecerunt barbari, fecerunt Barberini », ce que les barbares n'ont pas fait, les Barberini l'ont fait.","Selon la tradition, un pape voulut faire jeter Pasquino dans le Tibre. On l'en dissuada en lui disant que, comme les grenouilles, il crierait encore plus fort dans l'eau.","Le nom viendrait d'un tailleur ou d'un barbier du quartier, nommé Pasquino, réputé pour sa langue acérée. C'est une tradition, pas un fait établi.","La coutume continue : on y voit encore des messages satiriques sur l'actualité."],"regarder":["Les feuilles collées sur le socle ou le panneau voisin : ce sont les pasquinades d'aujourd'hui."]},{"id":"navone","nom":"Place Navone","sous":"Un stade romain devenu une place baroque","jour":"dim","lat":41.89871,"lng":12.47316,"r":70,"wiki":"Piazza Navona","bref":"La forme allongée de la place reproduit exactement la piste du stade de Domitien, construit vers l'an 86.","histoire":["L'empereur Domitien y fait bâtir un stade pour des compétitions athlétiques à la grecque, qui accueillait sans doute 20 000 à 30 000 spectateurs. Les maisons qui entourent la place reposent sur ses gradins : on en voit les vestiges sous le niveau de la rue, au nord de la place. Le nom vient de « in agone », aux jeux, déformé au fil des siècles en « Navona ».","Au 17e siècle, le pape Innocent X Pamphilj, dont la famille possède le grand palais du côté ouest, en fait la vitrine de sa famille. Il commande à Bernin la fontaine des Quatre-Fleuves, achevée en 1651, et confie à Borromini l'église Sainte-Agnès-en-Agone, juste en face. Les deux artistes étaient les grands rivaux du baroque romain.","Les quatre géants de la fontaine figurent les grands fleuves des quatre continents alors connus : le Nil, le Gange, le Danube et le Rio de la Plata. L'obélisque qui les domine est romain, couvert d'hiéroglyphes gravés à la gloire de Domitien ; il a été rapporté du cirque de Maxence, sur la via Appia."],"anecdotes":["Le Nil a la tête voilée parce qu'à l'époque, personne ne connaissait sa source. Une légende plus amusante, mais fausse, prétend que Bernin l'a voilé pour qu'il ne voie pas l'église de son rival, et a fait lever la main au Rio de la Plata comme pour se protéger de sa chute. Or la fontaine date de 1651, et la façade de l'église n'a été commencée qu'en 1653.","Du 17e au 19e siècle, on bouchait les évacuations en été : la place était inondée les week-ends d'août et les nobles la traversaient en carrosse au milieu des badauds.","Sainte-Agnès est dédiée à une jeune martyre exposée nue sous les arcades du stade. Selon la légende, ses cheveux auraient poussé d'un coup pour couvrir son corps.","La fontaine du Maure, au sud, et celle de Neptune, au nord, complètent la place. La statue de Neptune n'a été ajoutée qu'en 1878."],"regarder":["Le palais Pamphilj, au milieu du côté ouest, aujourd'hui ambassade du Brésil.","La colombe tenant un rameau d'olivier au sommet de l'obélisque : c'est l'emblème des Pamphilj."]},{"id":"madama","nom":"Palais Madame (Sénat)","sous":"Le Sénat italien, chez une princesse des Médicis","jour":"dim","lat":41.899192,"lng":12.474278,"r":30,"wiki":"Palais Madame (Rome)","bref":"Depuis 1871, ce palais baroque est le siège du Sénat italien. Des carabiniers en gardent l'entrée.","histoire":["C'était à l'origine une résidence des Médicis, la famille de banquiers florentins, et le futur pape Léon X y a vécu. Le nom vient de « Madama » Marguerite d'Autriche, fille naturelle de l'empereur Charles Quint et veuve d'Alexandre de Médicis, qui y résida au 16e siècle avant de devenir duchesse de Parme.","La façade actuelle date du 17e siècle. Quand Rome devient la capitale de l'Italie unifiée, le Sénat du royaume s'y installe en 1871. Le Sénat de la République y siège toujours."],"anecdotes":["Deux colonnes de granit retrouvées dans le quartier, provenant des thermes de Néron, ont servi au 17e siècle à compléter le portique du Panthéon, tout proche.","Marguerite d'Autriche a aussi donné son nom à la villa Madama, sur les pentes du Monte Mario."],"regarder":["Les carabiniers en uniforme devant l'entrée, sur le Corso del Rinascimento."]},{"id":"saintlouis","nom":"Saint-Louis-des-Français","sous":"L'église de la France à Rome, et trois Caravage","jour":"dim","lat":41.899583,"lng":12.474667,"r":35,"wiki":"Église Saint-Louis-des-Français de Rome","bref":"Église nationale des Français à Rome, consacrée en 1589, elle abrite dans sa dernière chapelle à gauche trois chefs-d'œuvre du Caravage.","histoire":["La construction est lancée au 16e siècle avec le soutien de Catherine de Médicis, et l'église est consacrée en 1589. Sa façade, attribuée à Giacomo della Porta, porte notamment les statues de Charlemagne et de Saint Louis, ainsi que la salamandre de François Ier. Elle appartient toujours à la France, comme quatre autres églises de Rome.","Dans la chapelle Contarelli, le Caravage peint entre 1599 et 1602 le cycle de saint Matthieu : la Vocation à gauche, l'Inspiration au centre et le Martyre à droite. C'est sa première grande commande publique, et elle fait de lui le peintre le plus discuté de Rome. Dans la Vocation, un rayon de lumière suit le geste du Christ vers des collecteurs d'impôts attablés : on assiste à l'instant précis où un homme est appelé."],"anecdotes":["La première version de l'Inspiration a été refusée : saint Matthieu y ressemblait à un paysan, jambes croisées, pieds sales tendus vers le spectateur. Le tableau, racheté par un collectionneur, a fini à Berlin, où il a brûlé en 1945.","On débat encore de l'identité de Matthieu dans la Vocation : l'homme barbu qui se désigne du doigt, ou le jeune homme penché sur les pièces au bout de la table.","Chateaubriand y a fait élever un monument à Pauline de Beaumont, la femme qu'il aimait, morte à Rome en 1803. Le peintre Claude Lorrain y repose aussi.","La chapelle est souvent sombre : un éclairage à pièces a longtemps fonctionné, prévoyez un peu de monnaie."],"regarder":["La main du Christ dans la Vocation : elle reprend celle d'Adam peinte par Michel-Ange au plafond de la Sixtine.","Les fresques de sainte Cécile par le Dominiquin, deuxième chapelle à droite."]},{"id":"cancelleria","nom":"Palais de la Chancellerie","sous":"Un morceau du Vatican, gagné aux dés selon la légende","jour":"dim","lat":41.896687,"lng":12.471521,"r":35,"wiki":"Palais de la Chancellerie","bref":"Ce long palais de pierre claire, sur la place de la Cancelleria, est l'un des premiers grands palais de la Renaissance à Rome.","histoire":["Il a été construit entre 1489 et 1513 environ pour le cardinal Raffaele Riario, neveu du pape Sixte IV. Ses proportions élégantes ont longtemps été attribuées à Bramante, sans preuve certaine.","En 1517, Riario est compromis dans un complot contre le pape Léon X. Il sauve sa vie mais perd son palais, qui devient le siège de la Chancellerie apostolique, l'administration qui rédigeait les actes du pape. Depuis les accords du Latran de 1929, il appartient au Saint-Siège et bénéficie de l'extraterritorialité : vous êtes ici devant un petit morceau du Vatican."],"anecdotes":["Selon la légende, Riario l'aurait financé avec une somme énorme gagnée en une seule nuit aux dés contre un neveu du pape Innocent VIII.","Le palais englobe une église ancienne, San Lorenzo in Damaso, dont l'entrée s'ouvre sur la façade.","Il abrite le tribunal de la Rote romaine, qui juge notamment les demandes d'annulation de mariages religieux."],"regarder":["La cour intérieure à arcades, l'une des plus pures de la Renaissance, quand le portail est ouvert."]},{"id":"campo","nom":"Campo de' Fiori","sous":"Le marché, et le bûcher de Giordano Bruno","jour":"dim","lat":41.895664,"lng":12.472047,"r":45,"wiki":"Campo de' Fiori","bref":"Seule grande place de Rome sans église, elle doit son nom au pré fleuri qui l'occupait au Moyen Âge.","histoire":["La place se forme au 15e siècle et devient un lieu de passage animé, avec des auberges pour les pèlerins et les voyageurs. C'était aussi un lieu d'exécutions publiques.","La statue sombre du centre représente Giordano Bruno, philosophe et ancien moine dominicain, qui défendait l'idée d'un univers infini peuplé d'innombrables mondes. Condamné pour hérésie par l'Inquisition, il a été brûlé vif ici le 17 février 1600. La statue, d'Ettore Ferrari, a été inaugurée en 1889 à l'initiative des milieux laïcs, contre l'avis du Vatican.","Le marché s'y tient tous les matins sauf le dimanche depuis 1869, quand il a été déplacé de la place Navone."],"anecdotes":["Giordano Bruno a le visage tourné vers le Vatican, et l'on dit que ce n'est pas un hasard.","Vannozza Cattanei, maîtresse du pape Alexandre VI Borgia et mère de César et Lucrèce Borgia, tenait des auberges près de la place. Son blason, associé à celui des Borgia, se voit encore sur un mur du Vicolo del Gallo.","Chaque 17 février, des associations de libres penseurs fleurissent la statue."],"regarder":["Les bas-reliefs du socle, qui racontent le procès et le bûcher de Bruno."]},{"id":"farnese","nom":"Palais Farnèse","sous":"L'ambassade de France, en partie dessinée par Michel-Ange","jour":"dim","lat":41.895157,"lng":12.471234,"r":45,"wiki":"Palais Farnèse","bref":"Ce palais massif, l'un des plus beaux de la Renaissance, abrite l'ambassade de France en Italie.","histoire":["Le cardinal Alexandre Farnèse le fait construire à partir de 1514 par Antonio da Sangallo le Jeune. Devenu pape sous le nom de Paul III en 1534, il agrandit le projet. À la mort de Sangallo, Michel-Ange reprend le chantier : on lui doit la grande corniche du toit, le dernier étage de la cour et la fenêtre centrale au-dessus de la porte.","La France loue le palais pour son ambassade depuis 1874. Elle l'a acheté en 1911, puis l'a revendu à l'Italie en 1936, en échange d'un bail de 99 ans pour un loyer symbolique. L'École française de Rome y a aussi ses locaux."],"anecdotes":["Les deux fontaines de la place sont d'énormes vasques de granit venues des thermes de Caracalla, décorées du lys des Farnèse.","À l'intérieur, la galerie peinte par Annibale Carrache sur les amours des dieux est l'un des sommets de la peinture baroque. Elle se visite sur réservation, en petits groupes.","Le palais abritait la collection d'antiques des Farnèse, dont l'Hercule et le Taureau Farnèse, partis plus tard à Naples, où ils sont toujours."],"regarder":["La corniche de Michel-Ange, tout en haut de la façade.","Le lys des Farnèse sur les vasques des fontaines."]},{"id":"andreavalle","nom":"Sant'Andrea della Valle","sous":"La plus haute coupole de Rome après Saint-Pierre, et le décor de Tosca","jour":"dim","lat":41.895977,"lng":12.474692,"r":35,"wiki":"Église Sant'Andrea della Valle","bref":"Tout près de l'hôtel, cette grande église baroque possède la coupole la plus haute de Rome après celle de Saint-Pierre.","histoire":["Commencée en 1591 pour l'ordre des Théatins, elle est achevée au 17e siècle. La coupole, de Carlo Maderno, est terminée en 1622, la façade de Carlo Rainaldi vers 1665.","À l'intérieur, la coupole est peinte par Giovanni Lanfranco : une gloire du Paradis vue d'en bas. Les quatre évangélistes des pendentifs sont du Dominiquin. Deux papes de la Renaissance, Pie II et Pie III, tous deux de la famille Piccolomini, y reposent dans des tombeaux transférés de l'ancienne basilique Saint-Pierre."],"anecdotes":["Le premier acte de Tosca, l'opéra de Puccini créé à Rome en 1900, se déroule dans cette église : le peintre Mario Cavaradossi y travaille à un tableau de Marie-Madeleine.","Regardez la façade : l'ange en haut à gauche n'a qu'une aile, et il n'a pas de pendant à droite. Selon une anecdote célèbre, le sculpteur Ercole Ferrata, vexé par une critique du pape Alexandre VII, aurait refusé de faire le second : « S'il en veut un autre, qu'il le fasse lui-même. »"],"regarder":["L'ange à une seule aile, en haut à gauche de la façade."]},{"id":"argentina","nom":"Largo Argentina","sous":"Là où César a été assassiné","jour":"dim","lat":41.895379,"lng":12.476852,"r":50,"wiki":"Largo di Torre Argentina","bref":"Sous le niveau de la rue, ces ruines de quatre temples de la République romaine bordent le lieu de l'assassinat de Jules César.","histoire":["Les temples, désignés par les lettres A, B, C et D faute de savoir à qui ils étaient dédiés, ont été dégagés entre 1926 et 1929, lors de la démolition d'un quartier. Ils s'échelonnent du 3e au 1er siècle avant Jésus-Christ, ce qui en fait parmi les plus anciens temples visibles à Rome.","Derrière les temples B et C, à l'ouest, se trouvent les restes de la curie de Pompée, la salle où se réunissait le Sénat. C'est là que Jules César a été poignardé de 23 coups, aux ides de mars, le 15 mars 44 avant Jésus-Christ, au pied de la statue de son ancien rival Pompée."],"anecdotes":["Le nom « Argentina » n'a rien à voir avec l'Argentine. Il vient de la tour d'un maître des cérémonies du pape, Johannes Burckard, originaire de Strasbourg, Argentoratum en latin.","Les ruines abritent une colonie de chats protégée, nourrie et soignée par des bénévoles.","Le théâtre Argentina, sur la place, a vu la création du Barbier de Séville de Rossini en 1816. La première fut un fiasco."],"regarder":["Le temple B, le seul de forme ronde, et les chats qui dorment sur les fûts de colonnes."]},{"id":"tortues","nom":"Fontaine des Tortues","sous":"La plus gracieuse fontaine de Rome","jour":"dim","lat":41.893806,"lng":12.4775,"r":30,"wiki":"Fontaine des Tortues","bref":"Sur la petite place Mattei, à l'entrée de l'ancien Ghetto, quatre jeunes gens de bronze poussent des tortues vers la vasque.","histoire":["Dessinée par Giacomo della Porta et réalisée entre 1581 et 1588 avec les bronzes de Taddeo Landini, elle devait au départ s'élever sur une autre place. La famille Mattei, propriétaire des palais voisins, obtint qu'elle soit installée devant chez elle.","Les tortues n'existaient pas à l'origine : elles ont été ajoutées lors d'une restauration en 1658, peut-être par Bernin."],"anecdotes":["Légende : le duc Mattei, ruiné au jeu, aurait voulu prouver à son futur beau-père qu'il restait capable de grandes choses. Il aurait fait construire la fontaine en une seule nuit, puis fait murer la fenêtre d'où ils l'avaient admirée. On montre encore cette fenêtre murée sur le palais.","Les tortues ont été volées à plusieurs reprises. Celles que vous voyez sont des copies : les originales sont conservées aux musées du Capitole."],"regarder":["La fenêtre murée du palais Mattei, sur la place.","Les jeunes gens posent chacun un pied sur un dauphin."]},{"id":"octavie","nom":"Portique d'Octavie et ancien Ghetto","sous":"Un portique d'Auguste au cœur du quartier juif","jour":"dim","lat":41.892436,"lng":12.478533,"r":45,"wiki":"Portique d'Octavie","bref":"Ces colonnes et ce fronton antiques sont l'entrée d'un grand portique dédié par l'empereur Auguste à sa sœur Octavie. Autour s'étend l'ancien Ghetto de Rome.","histoire":["Le portique, élevé vers 27 à 23 avant Jésus-Christ, entourait deux temples et une bibliothèque. Vous voyez son entrée monumentale, restaurée par Septime Sévère en 203. Au Moyen Âge, on y installe le marché aux poissons, et une église s'y loge : Sant'Angelo in Pescheria.","En 1555, le pape Paul IV enferme les Juifs de Rome dans un quartier entouré de murs, ici, au bord du Tibre, souvent inondé. Les portes fermaient la nuit. Le Ghetto n'est aboli qu'en 1870, quand Rome rejoint le royaume d'Italie, et ses murs sont rasés à la fin du 19e siècle. La communauté juive de Rome est pourtant présente dans la ville depuis plus de 2 000 ans : c'est l'une des plus anciennes d'Europe.","Le 16 octobre 1943, les nazis raflent plus de mille Juifs romains dans le quartier et les déportent à Auschwitz. Seize seulement reviendront. La petite place devant le portique porte le nom de cette date."],"anecdotes":["Sur l'un des piliers, une plaque de marbre médiévale ordonne de remettre aux Conservateurs de la ville la tête des poissons plus longs que la plaque : les têtes servaient à faire une soupe très recherchée.","La cuisine judéo-romaine est née ici : artichauts frits « alla giudia », fleurs de courgette, filets de morue frits.","Devant certaines portes, de petits pavés de laiton, les « pierres d'achoppement », portent le nom de déportés qui vivaient là."],"regarder":["La plaque des poissons sur un pilier du portique.","Les pavés de laiton devant les portes de la Via del Portico d'Ottavia."]},{"id":"synagogue","nom":"Grande Synagogue de Rome","sous":"La seule coupole carrée de Rome","jour":"dim","lat":41.89195,"lng":12.47799,"r":40,"wiki":"Grande synagogue de Rome","bref":"Le grand édifice à coupole carrée, au bord du Tibre, est la Grande Synagogue, inaugurée en 1904.","histoire":["Construite juste après la démolition du Ghetto, entre 1901 et 1904, elle affirme la liberté retrouvée de la communauté. Son style éclectique s'inspire de l'Orient ancien, assyrien et babylonien, pour se distinguer des églises de la ville.","Elle abrite aussi le Musée juif de Rome, qui raconte plus de deux mille ans d'histoire de la communauté."],"anecdotes":["Sa coupole à base carrée est unique dans le paysage romain : on la repère de loin, depuis le Janicule ou le Capitole.","En 1986, Jean-Paul II y est venu prier. C'était la première visite connue d'un pape dans une synagogue, et il y appela les Juifs « nos frères aînés ».","En 1982, un attentat terroriste devant la synagogue a tué un enfant de deux ans, Stefano Gaj Taché. Une place voisine porte son nom."],"regarder":["La coupole carrée, bien visible depuis le quai du Tibre."]},{"id":"marcellus","nom":"Théâtre de Marcellus","sous":"Un théâtre romain habité depuis des siècles","jour":"dim","lat":41.891911,"lng":12.479483,"r":50,"wiki":"Théâtre de Marcellus","bref":"Ces arcades superposées sont celles d'un théâtre antique, surmonté d'appartements toujours habités.","histoire":["Commencé par Jules César, il est inauguré par Auguste vers 13 à 11 avant Jésus-Christ et porte le nom de Marcellus, neveu et héritier désigné d'Auguste, mort jeune en 23 avant Jésus-Christ. Il pouvait accueillir environ 15 000 à 20 000 spectateurs.","Au Moyen Âge, de grandes familles romaines le transforment en forteresse. Au 16e siècle, l'architecte Baldassarre Peruzzi construit un palais sur ses ruines pour la famille Savelli, qui passe ensuite aux Orsini. Les étages supérieurs sont toujours des appartements privés, parmi les adresses les plus étonnantes de Rome."],"anecdotes":["Sa façade, avec des arcs encadrés de colonnes d'un style différent à chaque étage, a servi de modèle au Colisée, construit près d'un siècle plus tard.","Les trois colonnes corinthiennes dressées à côté appartiennent au temple d'Apollon Sosianus.","L'été, des concerts de musique classique se donnent au pied des ruines."],"regarder":["Les trois colonnes du temple d'Apollon, juste à côté du théâtre."]},{"id":"fabricius","nom":"Pont Fabricius (Quattro Capi)","sous":"Le plus vieux pont de Rome resté intact","jour":"dim","lat":41.89098,"lng":12.47819,"r":35,"wiki":"Pont Fabricius","bref":"Construit en 62 avant Jésus-Christ, ce pont relie la rive du Ghetto à l'île Tibérine. Il n'a jamais été reconstruit.","histoire":["Il a été bâti par Lucius Fabricius, magistrat chargé des routes. Son nom est toujours gravé sur les arches : c'est le plus ancien pont de Rome resté dans son état d'origine, et on le traverse toujours à pied, plus de 2 000 ans après."],"anecdotes":["Son surnom, « Quattro Capi », les quatre têtes, vient des piliers à quatre visages du dieu Janus posés sur le parapet.","Légende : le pape Sixte V aurait chargé quatre architectes de le restaurer ; ils se disputaient tant qu'il les aurait fait décapiter, et les quatre têtes rappelleraient leur sort. L'histoire est inventée : les piliers sont antiques.","La petite arche au-dessus de la pile centrale laissait passer l'eau des crues et allégeait le pont."],"regarder":["L'inscription de Lucius Fabricius sur l'arche.","Les têtes à quatre visages sur le parapet."]},{"id":"tiberine","nom":"Île Tibérine","sous":"L'île en forme de navire, vouée à la médecine","jour":"dim","lat":41.890833,"lng":12.477222,"r":60,"wiki":"Île Tibérine","bref":"La seule île de Rome est consacrée aux soins depuis près de 2 300 ans.","histoire":["Selon la légende rapportée par l'historien Tite-Live, elle se serait formée avec le blé des Tarquins, jeté dans le fleuve après l'expulsion du dernier roi de Rome, en 509 avant Jésus-Christ.","En 291 avant Jésus-Christ, pendant une épidémie, les Romains envoient chercher à Épidaure, en Grèce, le serpent sacré d'Asclépios, le dieu de la médecine, Esculape pour les Romains. Selon la tradition, le serpent quitte le navire et nage jusqu'à l'île. On y bâtit un temple, et l'on donne à l'île la forme d'un navire, avec une proue en travertin.","La vocation médicale ne s'est jamais arrêtée : l'hôpital Fatebenefratelli, tenu depuis le 16e siècle par les frères de Saint-Jean-de-Dieu, fonctionne toujours. L'église Saint-Barthélemy, fondée vers l'an 1000 par l'empereur Otton III, a pris la place du temple."],"anecdotes":["En 1943, des médecins de l'hôpital inventèrent une maladie fictive et très contagieuse, le « syndrome K », pour cacher des Juifs dans un service. Les soldats allemands n'osèrent pas y entrer.","À la pointe aval, on voit encore un morceau de la proue de travertin, sculpté du bâton au serpent d'Esculape, le symbole de la médecine.","Le pont qui part vers le Trastevere, le pont Cestius, est lui aussi d'origine antique."],"regarder":["Descendez sur le quai, à la pointe aval de l'île, pour voir la proue de pierre et le bâton d'Esculape."]},{"id":"gianicolo","nom":"Janicule, terrasse Garibaldi","sous":"Le plus beau panorama sur les coupoles de Rome","jour":"dim","lat":41.8915,"lng":12.4608,"r":70,"wiki":"Janicule","bref":"Cette colline domine tout le centre historique. Sa grande place est dédiée à Giuseppe Garibaldi, le héros de l'unité italienne.","histoire":["Le Janicule tient son nom du dieu Janus. Il ne fait pas partie des sept collines de Rome : il se trouve sur la rive droite du Tibre, en dehors de la ville antique.","En 1849, la République romaine, proclamée après la fuite du pape Pie IX, y résiste pendant des semaines aux troupes françaises envoyées pour rétablir le pape. Garibaldi dirige la défense. Sa statue équestre date de 1895, et les bustes qui bordent la promenade sont ceux de ses compagnons d'armes."],"anecdotes":["Chaque jour à midi, un coup de canon est tiré sous la terrasse pour donner l'heure. La tradition remonte au 19e siècle, et le canon est installé ici depuis 1904.","Un peu plus loin sur la promenade, la statue équestre d'Anita Garibaldi, son épouse brésilienne, la montre au galop, un bébé dans un bras et un pistolet dans l'autre main. Ses restes reposent dans le socle.","Le phare blanc, au bout de la promenade, a été offert en 1911 par les Italiens d'Argentine."],"regarder":["Cherchez la coupole aplatie du Panthéon, le monument blanc du Vittoriano et la grande coupole de Sant'Andrea della Valle, à côté de votre hôtel."]},{"id":"acquapaola","nom":"Fontaine de l'Acqua Paola","sous":"« Il Fontanone », vu dans La Grande Bellezza","jour":"dim","lat":41.88875,"lng":12.464167,"r":50,"wiki":"Fontana dell'Acqua Paola","bref":"Cette fontaine monumentale, sur la route du Janicule, ressemble à un arc de triomphe d'où jaillit l'eau.","histoire":["Le pape Paul V Borghèse la fait construire en 1612 pour célébrer la remise en service d'un ancien aqueduc de l'empereur Trajan, rebaptisé Acqua Paola. Une partie des marbres vient du temple de Minerve du forum de Nerva, démoli pour l'occasion."],"anecdotes":["C'est ici que s'ouvre La Grande Bellezza, le film de Paolo Sorrentino, Oscar du meilleur film étranger en 2014 : un touriste japonais s'y effondre en contemplant la vue.","L'inscription au sommet célèbre le pape Paul V : les papes signaient presque toujours leurs fontaines.","Les Romains l'appellent simplement « il Fontanone », la grande fontaine."],"regarder":["Le dragon et l'aigle des armoiries Borghèse, au sommet de la fontaine."]},{"id":"pantheon","nom":"Panthéon","sous":"Une coupole antique debout depuis 1 900 ans","jour":"dim","lat":41.898611,"lng":12.476944,"r":50,"wiki":"Panthéon (Rome)","bref":"Temple de tous les dieux devenu église, c'est le monument antique le mieux conservé de Rome.","histoire":["Un premier temple est construit par Agrippa, gendre d'Auguste, vers 27 à 25 avant Jésus-Christ. Après un incendie, l'empereur Hadrien le fait entièrement reconstruire vers 118 à 125, mais garde l'inscription d'Agrippa sur la façade : « M. AGRIPPA L. F. COS TERTIUM FECIT », Marcus Agrippa, fils de Lucius, consul pour la troisième fois, l'a fait.","La coupole mesure 43,30 mètres de diamètre, exactement la hauteur du sol à l'oculus : on pourrait y loger une sphère parfaite. C'est toujours la plus grande coupole en béton non armé du monde. Le béton s'allège en montant, mêlé de pierre ponce près du sommet. L'oculus ouvert sur le ciel mesure environ 9 mètres.","En 609, l'empereur byzantin Phocas le donne au pape Boniface IV, qui le consacre à la Vierge et aux martyrs. Devenu église, il échappe aux démolitions qui ont fait disparaître tant de temples."],"anecdotes":["Quand il pleut, l'eau tombe par l'oculus : le sol, légèrement bombé, est percé de petits trous d'évacuation.","À la Pentecôte, les pompiers lâchent des milliers de pétales de roses rouges par l'oculus.","Raphaël y est enterré depuis 1520, selon son vœu. Son épitaphe dit en latin : ici repose Raphaël ; de son vivant, la Nature craignit d'être vaincue, et à sa mort, de mourir avec lui. Les deux premiers rois d'Italie, Victor-Emmanuel II et Umberto Ier, y reposent aussi.","Le pape Urbain VIII Barberini fit enlever en 1625 les bronzes du plafond du portique, surtout pour fondre des canons. D'où la pasquinade : ce que les barbares n'ont pas fait, les Barberini l'ont fait."],"regarder":["Les 16 colonnes de granit d'un seul bloc du portique, venues d'Égypte.","Au centre de la salle, l'oculus et les caissons de la coupole."]},{"id":"ignace","nom":"Église Saint-Ignace","sous":"La fausse coupole la plus célèbre du monde","jour":"dim","lat":41.89904,"lng":12.47973,"r":35,"wiki":"Église Saint-Ignace-de-Loyola (Rome)","bref":"Église des Jésuites dédiée à saint Ignace de Loyola, elle est célèbre pour ses plafonds en trompe-l'œil.","histoire":["Construite entre 1626 et 1650 pour le Collège romain des Jésuites, voisin, elle devait recevoir une grande coupole, jamais bâtie, faute d'argent et, dit-on, parce que les voisins craignaient de perdre leur lumière.","En 1685, le frère jésuite Andrea Pozzo résout le problème en peignant une fausse coupole sur une toile plate d'environ 17 mètres de diamètre. Il couvre ensuite la voûte de la nef d'une immense fresque, la gloire de saint Ignace, où l'architecture peinte prolonge les murs réels vers le ciel."],"anecdotes":["Un disque de marbre au milieu de la nef indique le point exact d'où l'illusion est parfaite. Placez-vous dessus, puis avancez vers la fausse coupole : la perspective se déforme à mesure que vous approchez.","Saint Louis de Gonzague et saint Robert Bellarmin y reposent. Bellarmin, cardinal jésuite, avait averti Galilée en 1616 de ne plus défendre le système de Copernic.","La petite place devant l'église a été dessinée en 1727 et 1728 comme un décor d'opéra, avec des immeubles en forme de coulisses."],"regarder":["Le disque de marbre au sol, au milieu de la nef, puis la fausse coupole au-dessus du chœur."]},{"id":"colisee","nom":"Colisée","sous":"L'amphithéâtre des empereurs flaviens","jour":"lun","lat":41.890278,"lng":12.492222,"r":100,"wiki":"Colisée","bref":"Le plus grand amphithéâtre jamais construit par les Romains, inauguré en l'an 80.","histoire":["L'empereur Vespasien lance le chantier vers 70 à 72, à l'emplacement du lac artificiel de la Maison dorée de Néron : rendre au peuple un terrain confisqué par un tyran était un geste politique. Son fils Titus l'inaugure en 80 avec cent jours de jeux. Son autre fils, Domitien, ajoute les souterrains.","Il accueillait environ 50 000 spectateurs, placés selon leur rang : sénateurs en bas, femmes et plus pauvres tout en haut. Les 80 arcades d'entrée étaient numérotées et chaque billet indiquait sa porte : on voit encore les chiffres romains au-dessus des arches. Un immense velum de toile, manœuvré par des marins de la flotte, protégeait du soleil.","Les combats de gladiateurs disparaissent au 5e siècle, les chasses d'animaux au 6e. Le Colisée sert ensuite d'habitations, de forteresse, puis de carrière : sa pierre a servi à bâtir palais et églises. Un tremblement de terre, en 1349, fait s'effondrer une partie du côté sud."],"anecdotes":["Son nom vient du Colosse, une statue de bronze de Néron haute d'environ 30 mètres, qui se dressait tout près.","Les trous qui criblent les murs sont ceux des crampons de métal arrachés au Moyen Âge pour récupérer le fer et le bronze.","Aucune source fiable ne prouve que des chrétiens y ont été martyrisés, mais l'Église en a fait un lieu de mémoire : le pape y préside le chemin de croix du Vendredi saint.","Dans les souterrains, des monte-charges à contrepoids faisaient surgir les fauves au milieu de l'arène par des trappes."],"regarder":["Les chiffres romains gravés au-dessus des arcades d'entrée.","Le côté nord, encore intact sur ses quatre étages."]},{"id":"constantin","nom":"Arc de Constantin","sous":"Un arc de triomphe fait de pièces recyclées","jour":"lun","lat":41.889828,"lng":12.490605,"r":40,"wiki":"Arc de Constantin","bref":"Le plus grand arc de triomphe romain conservé, élevé en 315 pour Constantin, le premier empereur chrétien.","histoire":["Il célèbre la victoire de Constantin sur son rival Maxence au pont Milvius, en 312. Une partie de ses sculptures a été prise sur des monuments plus anciens de Trajan, d'Hadrien et de Marc Aurèle : on a simplement retaillé les têtes des empereurs pour leur donner les traits de Constantin.","L'inscription attribue la victoire à l'inspiration de la divinité, une formule volontairement vague, à une époque où l'empereur se rapprochait du christianisme sans rompre avec les cultes traditionnels."],"anecdotes":["Les grands médaillons ronds viennent d'un monument d'Hadrien et montrent des scènes de chasse et de sacrifice.","Les frises étroites, sculptées sous Constantin, ont un style beaucoup plus raide : on mesure d'un coup d'œil l'évolution de l'art romain en deux siècles.","L'arc du Carrousel, à Paris, s'en est inspiré."],"regarder":["Les médaillons d'Hadrien, au-dessus des petites arches."]},{"id":"titus","nom":"Arc de Titus","sous":"La prise de Jérusalem sculptée dans le marbre","jour":"lun","lat":41.890717,"lng":12.488585,"r":40,"wiki":"Arc de Titus","bref":"Cet arc à une seule baie, à l'entrée du Forum, célèbre la victoire de Titus en Judée et la prise de Jérusalem en 70.","histoire":["Il a été élevé vers 81 à 82 par l'empereur Domitien en l'honneur de son frère Titus, divinisé après sa mort. Sous la voûte, un relief montre les soldats romains portant le butin du Temple de Jérusalem, dont le grand chandelier à sept branches, la menorah.","Pris dans une forteresse médiévale, il a été dégagé et restauré au début du 19e siècle par Giuseppe Valadier, qui a complété les parties manquantes en travertin, sans décor, pour qu'on distingue l'ancien du neuf : un principe de restauration encore appliqué aujourd'hui."],"anecdotes":["Par tradition, les Juifs de Rome évitaient de passer sous l'arc, symbole de la destruction du Temple. En 1948, à la naissance de l'État d'Israël, la communauté y passa symboliquement.","Au centre de la voûte, Titus est emporté au ciel par un aigle : c'est son apothéose.","Il a inspiré de nombreux arcs modernes, dont l'Arc de triomphe de l'Étoile à Paris."],"regarder":["Le relief de la menorah, sous la voûte."]},{"id":"forum","nom":"Forum romain","sous":"Le cœur de la vie publique de Rome antique","jour":"lun","lat":41.8922,"lng":12.4852,"r":110,"wiki":"Forum romain (Rome)","bref":"Cette vallée entre le Palatin et le Capitole était le centre politique, religieux et commercial de Rome antique.","histoire":["Marécageuse à l'origine, la vallée est asséchée au 6e siècle avant Jésus-Christ grâce à un grand égout, la Cloaca Maxima. Pendant près de mille ans, on y vote, on y juge, on y prie et on y fait des affaires. La Via Sacra le traverse : les généraux victorieux la remontaient en triomphe jusqu'au Capitole.","Parmi les ruines : la Curie, salle du Sénat, reconstruite par Dioclétien et conservée parce qu'elle fut transformée en église ; les Rostres, la tribune des orateurs, ornée des éperons de navires pris à l'ennemi ; le temple de Vesta, où des prêtresses entretenaient le feu sacré de Rome ; le temple de Saturne, qui abritait le trésor public ; et le temple de César, élevé là où son corps fut incinéré en 44 avant Jésus-Christ.","Après l'Antiquité, le Forum est enseveli sous plusieurs mètres de terre et devient un pâturage, le « Campo Vaccino », le champ des vaches. Les grandes fouilles commencent au 19e siècle."],"anecdotes":["Les vestales servaient trente ans. Celle qui rompait son vœu de chasteté était emmurée vivante.","Chaque 15 mars, jour anniversaire de sa mort, des fleurs sont déposées sur l'autel du temple de César.","Sur l'arc de Septime Sévère, au fond du Forum, une ligne de l'inscription a été martelée puis regravée : on y a effacé le nom de Geta, assassiné par son frère Caracalla, qui voulait supprimer jusqu'à son souvenir.","Les portes de bronze antiques de la Curie ont été transportées au 17e siècle à la basilique Saint-Jean-de-Latran, dont elles ferment toujours l'entrée principale. Celles de la Curie sont des copies."],"regarder":["Les trois colonnes du temple de Castor et Pollux, l'emblème du Forum.","La maison des Vestales et ses bassins, au pied du Palatin."]},{"id":"tullianum","nom":"Prison Mamertine (Tullianum)","sous":"Le cachot où mourut Vercingétorix","jour":"lun","lat":41.893333,"lng":12.484444,"r":30,"wiki":"Tullianum","bref":"Au pied du Capitole, sous une petite église, se trouve la plus ancienne prison de Rome.","histoire":["Le Tullianum était un cachot souterrain creusé dans le rocher, où l'on enfermait les ennemis de l'État avant leur exécution. On y descendait les prisonniers par un trou dans le plafond.","Vercingétorix, le chef gaulois vaincu à Alésia en 52 avant Jésus-Christ, a été gardé prisonnier six ans avant d'être exhibé lors du triomphe de César en 46, puis exécuté ici. Le roi numide Jugurtha y est mort de faim, et les complices de Catilina y ont été étranglés en 63 avant Jésus-Christ."],"anecdotes":["Selon la tradition chrétienne, saint Pierre et saint Paul y auraient été emprisonnés, et Pierre aurait fait jaillir une source pour baptiser ses gardiens. Les sources antiques ne l'attestent pas.","Le nom de « prison Mamertine » ne date que du Moyen Âge."],"regarder":["L'église San Giuseppe dei Falegnami, construite au-dessus du cachot."]},{"id":"capitole","nom":"Place du Capitole","sous":"La colline sacrée, redessinée par Michel-Ange","jour":"lun","lat":41.893336,"lng":12.482924,"r":50,"wiki":"Place du Capitole (Rome)","bref":"Le Capitole était la colline religieuse de Rome antique. Sa place actuelle a été conçue par Michel-Ange et abrite l'hôtel de ville et les musées du Capitole.","histoire":["Le temple de Jupiter Capitolin, le plus important de Rome, se dressait sur cette colline. Au Moyen Âge, elle devient le siège du gouvernement de la ville, et elle l'est restée : le palais Sénatorial, au fond, est la mairie de Rome.","Vers 1536 à 1538, le pape Paul III charge Michel-Ange de réorganiser la place. Il dessine une place en trapèze, tournée vers la Rome moderne et Saint-Pierre plutôt que vers le Forum, avec deux palais symétriques et un pavement en étoile. Les travaux durent plus d'un siècle, et le pavement n'est réalisé qu'en 1940, d'après son dessin.","Les palais de part et d'autre abritent les musées du Capitole, souvent présentés comme le plus ancien musée public du monde : ils sont nés en 1471, quand le pape Sixte IV offrit au peuple romain des bronzes antiques, dont la Louve."],"anecdotes":["La statue équestre de Marc Aurèle a survécu au Moyen Âge parce qu'on la croyait de Constantin, le premier empereur chrétien. L'original, en bronze doré, est à l'abri dans le musée ; c'est une copie sur la place.","Selon la légende, en 390 avant Jésus-Christ, les oies sacrées du temple de Junon réveillèrent les défenseurs du Capitole lors d'une attaque nocturne des Gaulois.","Les jumeaux sous la Louve ont été ajoutés à la Renaissance, et l'âge de la Louve elle-même est aujourd'hui discuté.","Passez derrière le palais Sénatorial, à droite comme à gauche : deux terrasses offrent la plus belle vue sur le Forum, surtout de nuit."],"regarder":["La Cordonata, la rampe en escalier doux, gardée par Castor et Pollux.","Le dessin en étoile du pavement, autour de la statue."]},{"id":"aracoeli","nom":"Santa Maria in Aracoeli","sous":"124 marches pour remercier la fin de la peste","jour":"lun","lat":41.893889,"lng":12.483333,"r":35,"wiki":"Basilique Santa Maria in Aracoeli","bref":"La grande église de brique en haut du long escalier, à côté de la place du Capitole, se dresse à l'emplacement de la citadelle antique.","histoire":["Son escalier de 124 marches a été construit en 1348, en remerciement de la fin de la peste noire. L'église, tenue par les Franciscains, date du 13e siècle et réutilise des colonnes antiques toutes différentes.","Son nom, l'autel du ciel, vient d'une légende médiévale : la Sibylle aurait annoncé ici à l'empereur Auguste la naissance du Christ, et il aurait vu dans le ciel la Vierge et l'Enfant."],"anecdotes":["On y vénérait le Santo Bambino, une statuette de l'Enfant Jésus réputée miraculeuse, à qui l'on écrivait du monde entier. Volée en 1994, elle n'a jamais été retrouvée ; une copie la remplace.","L'historien anglais Edward Gibbon raconte que c'est ici, en octobre 1764, en entendant les moines chanter dans les ruines du Capitole, qu'il eut l'idée d'écrire son Histoire du déclin et de la chute de l'Empire romain."],"regarder":["Le plafond à caissons dorés, qui célèbre la victoire de Lépante en 1571."]},{"id":"vittoriano","nom":"Vittoriano","sous":"La « machine à écrire » de marbre blanc","jour":"lun","lat":41.894722,"lng":12.483056,"r":60,"wiki":"Monument à Victor-Emmanuel II","bref":"Cet immense monument blanc, sur la place de Venise, célèbre Victor-Emmanuel II, premier roi de l'Italie unifiée, et abrite la tombe du Soldat inconnu.","histoire":["Le concours est lancé peu après la mort du roi, en 1878. Conçu par l'architecte Giuseppe Sacconi, le monument est inauguré en 1911, pour les 50 ans de l'unité italienne, et achevé seulement en 1935. Pour le construire, on a rasé une partie du quartier médiéval qui couvrait les pentes du Capitole.","Il est fait de marbre de Botticino, venu de la région de Brescia, d'un blanc éclatant qui tranche avec le travertin doré du reste de Rome. Depuis 1921, il abrite l'Autel de la Patrie et la tombe du Soldat inconnu de la Première Guerre mondiale, gardée en permanence par deux sentinelles devant une flamme éternelle."],"anecdotes":["Les Romains, peu conquis, l'ont surnommé la « machine à écrire », le « gâteau de mariage » ou le « dentier ».","La statue équestre du roi est si grande qu'avant sa mise en place, une vingtaine d'ouvriers ont dîné à l'intérieur du ventre du cheval, attablés. La photo existe.","Un ascenseur panoramique mène à une terrasse au sommet, d'où l'on voit toute la ville (accès payant)."],"regarder":["Les deux sentinelles et la flamme devant la tombe du Soldat inconnu.","Les deux quadriges de bronze au sommet, symboles de l'Unité et de la Liberté."]},{"id":"venise","nom":"Palais de Venise","sous":"Le balcon de Mussolini","jour":"lun","lat":41.8962,"lng":12.4815,"r":50,"wiki":"Palais de Venise","bref":"Ce palais austère, sur la place de Venise, est l'un des premiers grands palais de la Renaissance à Rome.","histoire":["Il est construit à partir de 1455 pour le cardinal vénitien Pietro Barbo, devenu ensuite le pape Paul II. Il servit plus tard d'ambassade de la République de Venise, d'où son nom, puis de l'Autriche.","De 1929 à 1943, Mussolini y installe son bureau, dans l'immense salle de la Mappemonde. Du balcon central, il harangue les foules, et c'est de là qu'il annonce l'entrée en guerre de l'Italie, le 10 juin 1940. Le palais est aujourd'hui un musée."],"anecdotes":["Paul II organisait les courses du carnaval, dont des courses de chevaux sans cavalier, le long de la rue qui part de la place : elle en a gardé le nom de Via del Corso.","On raconte que Mussolini laissait la lumière de son bureau allumée la nuit pour faire croire qu'il travaillait sans relâche.","À l'angle du palais, côté basilique Saint-Marc, le grand buste mutilé surnommé « Madame Lucrèce » est l'une des statues parlantes de Rome, comme Pasquino."],"regarder":["Le balcon central, au-dessus de la porte, face à la place."]},{"id":"trajane","nom":"Colonne Trajane et marchés de Trajan","sous":"Une bande dessinée de marbre de 200 mètres","jour":"lun","lat":41.895833,"lng":12.484167,"r":50,"wiki":"Colonne Trajane","bref":"Cette colonne de plus de 1 900 ans raconte en spirale les guerres de l'empereur Trajan contre les Daces, dans l'actuelle Roumanie.","histoire":["Inaugurée en 113, elle se dressait au cœur du forum de Trajan, le plus grand des forums impériaux, dessiné par l'architecte Apollodore de Damas. Sa frise, longue d'environ 200 mètres, compte plus de 2 500 personnages : on y voit les soldats construire des camps, traverser le Danube sur un pont de bateaux, combattre et soigner leurs blessés.","Le fût mesure 100 pieds romains, environ 30 mètres. L'inscription du socle explique que sa hauteur indique celle de la colline qu'on a creusée pour aménager le forum. Les cendres de Trajan furent déposées dans une urne d'or au pied de la colonne. Depuis 1587, une statue de saint Pierre a remplacé celle de l'empereur au sommet.","Juste derrière, les marchés de Trajan, un grand hémicycle de briques sur plusieurs étages, abritaient des bureaux et des boutiques : on les compare souvent à un centre commercial antique."],"anecdotes":["Un escalier en colimaçon de 185 marches, taillé dans le marbre, monte à l'intérieur jusqu'au sommet, éclairé par de minuscules fenêtres.","Les reliefs étaient peints de couleurs vives à l'origine.","La colonne Vendôme, à Paris, élevée à la gloire de Napoléon, s'en inspire directement."],"regarder":["Au bas de la spirale, le dieu Danube, un vieillard barbu qui sort du fleuve pour laisser passer l'armée."]},{"id":"mariemajeure","nom":"Sainte-Marie-Majeure","sous":"Une basilique née d'une neige d'août, où repose le pape François","jour":"lun","lat":41.8975,"lng":12.498611,"r":70,"wiki":"Basilique Sainte-Marie-Majeure","bref":"L'une des quatre basiliques majeures de Rome et la plus grande église dédiée à la Vierge. Le pape François y est enterré depuis 2025.","histoire":["Selon la légende, la Vierge serait apparue en songe au pape Libère et à un riche Romain, et le 5 août 352, la neige serait tombée sur la colline de l'Esquilin pour indiquer où bâtir l'église. Chaque 5 août, on fait encore tomber une pluie de pétales blancs pendant la messe.","La basilique actuelle est construite sous le pape Sixte III, vers 432 à 440, peu après le concile d'Éphèse, qui avait proclamé Marie Mère de Dieu. Ses mosaïques du 5e siècle, dans la nef et sur l'arc triomphal, sont parmi les plus anciennes de Rome. Le plafond à caissons aurait été doré avec le premier or rapporté d'Amérique, offert par les Rois catholiques d'Espagne.","Le pape François venait y prier devant l'icône de la Vierge, dite Salus Populi Romani, avant et après chacun de ses voyages. Mort le 21 avril 2025, il a choisi d'y être enterré, dans une tombe très simple qui porte seulement son nom latin, Franciscus."],"anecdotes":["Son campanile, haut d'environ 75 mètres, est le plus haut de Rome.","Le sculpteur Bernin repose aussi dans la basilique, sous une simple dalle près du maître-autel.","Sous l'autel, un reliquaire contiendrait des fragments du bois de la crèche de Bethléem."],"regarder":["La tombe du pape François, dans le bas-côté gauche, près de la chapelle Pauline.","Les mosaïques de l'arc triomphal, au-dessus du chœur."]},{"id":"trevi","nom":"Fontaine de Trevi","sous":"La fontaine la plus célèbre du monde, au bout d'un aqueduc antique","jour":"lun","lat":41.900932,"lng":12.483313,"r":50,"wiki":"Fontaine de Trevi","bref":"Cette fontaine baroque, adossée au palais Poli, est l'aboutissement de l'aqueduc de l'Aqua Virgo, construit par Agrippa en 19 avant Jésus-Christ.","histoire":["L'aqueduc, long d'environ 20 kilomètres et presque entièrement souterrain, alimente toujours la fontaine. Son nom, l'Eau vierge, viendrait d'une jeune fille qui aurait montré la source à des soldats assoiffés : la scène est sculptée en haut de la fontaine.","La fontaine actuelle naît d'un concours lancé par le pape Clément XII et remporté par Nicola Salvi. Les travaux durent de 1732 à 1762. Au centre, Océan, debout sur un char en forme de coquillage, est tiré par deux chevaux marins, l'un calme et l'autre agité, comme les deux humeurs de la mer."],"anecdotes":["La tradition veut qu'on lance une pièce de la main droite par-dessus l'épaule gauche pour être sûr de revenir à Rome. Plus d'un million d'euros sont repêchés chaque année et reversés à la Caritas.","La scène d'Anita Ekberg appelant « Marcello, come here! » dans La Dolce Vita de Fellini, en 1960, a été tournée ici, en hiver.","Légende : un barbier installé à droite de la fontaine critiquait sans cesse les travaux. Salvi aurait fait poser un grand vase de pierre, surnommé l'as de coupe, pour lui boucher la vue.","L'accès au bord du bassin est désormais payant, 2 euros, et la vue depuis la place reste gratuite."],"regarder":["Le cheval agité et le cheval calme, de part et d'autre d'Océan.","Le grand vase de travertin sur la droite : l'as de coupe."]},{"id":"hadrien","nom":"Temple d'Hadrien (Piazza di Pietra)","sous":"Onze colonnes antiques dans la façade d'un palais","jour":"lun","lat":41.899722,"lng":12.479444,"r":30,"wiki":"Temple d'Hadrien","bref":"Sur la place de Pierre, onze colonnes corinthiennes d'environ 15 mètres sont prises dans la façade d'un bâtiment.","histoire":["Elles appartenaient au temple dédié à l'empereur Hadrien divinisé, inauguré par son fils adoptif Antonin le Pieux en 145. À la fin du 17e siècle, l'architecte Carlo Fontana construit sur ses restes la douane pontificale, en gardant les colonnes dans la façade. Le bâtiment abrite aujourd'hui la Chambre de commerce de Rome."],"anecdotes":["La différence de niveau est frappante : le sol antique est plusieurs mètres sous la place actuelle, comme presque partout à Rome.","Les trous visibles dans le marbre sont ceux des crampons de métal arrachés au Moyen Âge."],"regarder":["La base des colonnes, en contrebas de la place."]},{"id":"colonna","nom":"Piazza Colonna et colonne de Marc Aurèle","sous":"Le cœur politique de l'Italie, autour d'une colonne antique","jour":"lun","lat":41.900833,"lng":12.48,"r":50,"wiki":"Colonne de Marc-Aurèle","bref":"La colonne sculptée célèbre les guerres de Marc Aurèle. Sur la place se trouvent le palais Chigi, siège du président du Conseil, et juste derrière Montecitorio, la Chambre des députés.","histoire":["Élevée après la mort de Marc Aurèle en 180, la colonne raconte en spirale ses campagnes contre les peuples germaniques et sarmates, le long du Danube. Elle imite la colonne Trajane, avec des personnages plus expressifs et des scènes plus dramatiques.","En 1589, le pape Sixte V remplace la statue disparue de l'empereur par une statue de saint Paul en bronze.","Le palais Chigi, sur la place, abrite depuis 1961 la présidence du Conseil des ministres. Derrière lui, le palais Montecitorio, commencé par Bernin, est le siège de la Chambre des députés depuis 1871."],"anecdotes":["Une scène célèbre montre le miracle de la pluie : une armée romaine assoiffée et encerclée est sauvée par un orage. Les chrétiens y virent plus tard l'effet de leurs prières.","L'obélisque égyptien dressé devant Montecitorio servait d'aiguille au gigantesque cadran solaire de l'empereur Auguste, sur le Champ de Mars."],"regarder":["La statue de saint Paul au sommet de la colonne.","L'obélisque de Montecitorio, l'ancienne aiguille du cadran solaire d'Auguste."]},{"id":"borghese","nom":"Galerie Borghèse","sous":"Le musée privé d'un cardinal collectionneur","jour":"mar","lat":41.91421,"lng":12.492144,"r":70,"wiki":"Galerie Borghèse","bref":"Cette villa a été construite au début du 17e siècle pour le cardinal Scipione Borghèse, neveu du pape Paul V, afin d'exposer ses collections.","histoire":["Scipione Borghèse, l'un des plus grands collectionneurs de son temps, repère très tôt le génie du jeune Bernin. Celui-ci sculpte pour lui, avant ses 30 ans, ses chefs-d'œuvre : l'Enlèvement de Proserpine en 1621 et 1622, David en 1623 et 1624, Apollon et Daphné entre 1622 et 1625.","Le cardinal collectionne aussi le Caravage : la galerie conserve six de ses tableaux, dont le Jeune Bacchus malade, un autoportrait du peintre souffrant, et David avec la tête de Goliath, où la tête tranchée de Goliath a les traits du Caravage. L'État italien achète la villa et ses collections en 1902."],"anecdotes":["Dans l'Enlèvement de Proserpine, regardez la main de Pluton s'enfoncer dans la cuisse de Proserpine : le marbre semble devenu chair.","Scipione ne reculait devant rien pour obtenir des tableaux. En 1607, il fit saisir plus de cent toiles chez le peintre Cavalier d'Arpin, dont des premiers Caravage, sous un prétexte fiscal.","Pauline Bonaparte, sœur de Napoléon et épouse du prince Camille Borghèse, a posé presque nue pour Canova en Vénus victorieuse. À qui s'en étonnait, elle aurait répondu que l'atelier était chauffé.","En 1807, le prince Camille Borghèse a vendu à son beau-frère Napoléon plus de 300 antiques de la collection, aujourd'hui au Louvre."],"regarder":["Les feuilles de laurier qui poussent aux doigts de Daphné.","Le visage concentré du David de Bernin, qui serait son autoportrait."]},{"id":"pincio","nom":"Terrasse du Pincio","sous":"Le balcon de Rome sur la place du Peuple","jour":"mar","lat":41.911763,"lng":12.479653,"r":70,"wiki":"Pincio","bref":"Ce jardin perché domine la place du Peuple, avec une vue jusqu'à la coupole de Saint-Pierre.","histoire":["La colline doit son nom à la famille des Pincii, qui y avait ses jardins à la fin de l'Antiquité. Les jardins actuels et la grande terrasse ont été dessinés au début du 19e siècle par l'architecte Giuseppe Valadier, pendant la période napoléonienne, en même temps que la place du Peuple en contrebas.","Le Pincio communique avec l'immense parc de la Villa Borghèse, l'ancien domaine du cardinal Scipione, devenu jardin public au début du 20e siècle."],"anecdotes":["Les allées sont bordées de plus de 200 bustes d'Italiens célèbres, de Dante à Garibaldi. Beaucoup ont perdu leur nez, cible favorite des vandales.","L'horloge à eau, au milieu d'un petit bassin, fonctionne grâce au débit de l'eau. Elle a été présentée à l'Exposition universelle de Paris en 1867."],"regarder":["La coupole de Saint-Pierre, au loin, au-dessus des toits.","L'obélisque et les églises jumelles de la place du Peuple, en contrebas."]},{"id":"popolo","nom":"Place du Peuple","sous":"L'entrée nord de Rome et ses églises jumelles","jour":"mar","lat":41.9107,"lng":12.47635,"r":70,"wiki":"Piazza del Popolo","bref":"Pendant des siècles, les voyageurs venus du nord entraient dans Rome par la porte qui ferme cette place.","histoire":["La Porta del Popolo s'ouvre sur l'antique Via Flaminia, qui menait vers l'Adriatique. Au centre, l'obélisque Flaminio, l'un des plus anciens de Rome, date des pharaons Séthi Ier et Ramsès II. Rapporté d'Héliopolis par Auguste en 10 avant Jésus-Christ pour le Circus Maximus, il a été dressé ici en 1589 par le pape Sixte V.","Côté ville, les deux églises qui semblent jumelles, Santa Maria dei Miracoli et Santa Maria in Montesanto, encadrent les trois rues du Trident. Elles ne sont pas identiques : l'une a une coupole ronde, l'autre ovale, mais l'illusion de symétrie est parfaite depuis la porte. La forme actuelle de la place, en ellipse, est due à Giuseppe Valadier, au début du 19e siècle."],"anecdotes":["La face intérieure de la porte a été décorée par Bernin en 1655 pour l'arrivée de la reine Christine de Suède, qui venait de se convertir au catholicisme. L'inscription lui souhaite une entrée heureuse et favorable.","On y procédait encore à des exécutions publiques au 19e siècle."],"regarder":["Les lions de style égyptien qui crachent de l'eau au pied de l'obélisque.","Le Trident vu depuis la porte : Via del Corso au centre, Via di Ripetta à droite et Via del Babuino à gauche."]},{"id":"smpopolo","nom":"Santa Maria del Popolo","sous":"Deux Caravage et une chapelle de Raphaël","jour":"mar","lat":41.911448,"lng":12.476483,"r":30,"wiki":"Basilique Santa Maria del Popolo","bref":"Adossée à la porte de la ville, cette église discrète est un véritable musée de la Renaissance et du baroque.","histoire":["Selon la légende, le pape Pascal II la fit bâtir en 1099 à l'emplacement d'un noyer hanté par le fantôme de Néron, qu'on disait enterré là. L'église actuelle date de la fin du 15e siècle.","Dans la chapelle Cerasi, à gauche du chœur, le Caravage a peint en 1600 et 1601 la Conversion de saint Paul et le Crucifiement de saint Pierre. Dans la Conversion, Paul est à terre, aveuglé, et le cheval occupe presque tout le tableau. La chapelle Chigi, conçue par Raphaël pour le banquier Agostino Chigi, a été achevée par Bernin plus d'un siècle plus tard."],"anecdotes":["Martin Luther a logé dans le couvent augustin voisin lors de son voyage à Rome en 1510 et 1511, quelques années avant de rompre avec l'Église.","La chapelle Chigi, avec ses pyramides et ses statues de Bernin, joue un rôle dans le roman Anges et démons de Dan Brown.","Le Caravage dut repeindre les deux tableaux, ses premières versions n'ayant pas été retenues. La première Conversion de saint Paul existe toujours, dans une collection privée romaine."],"regarder":["Le cheval du Caravage, qui lève le sabot pour ne pas écraser Paul.","Les tombeaux en forme de pyramide de la chapelle Chigi."]},{"id":"espagne","nom":"Place d'Espagne et escalier de la Trinité-des-Monts","sous":"135 marches financées par un Français","jour":"mar","lat":41.905806,"lng":12.482212,"r":60,"wiki":"Escalier de la Trinité-des-Monts","bref":"Le célèbre escalier relie la place d'Espagne, en bas, à l'église française de la Trinité-des-Monts, en haut.","histoire":["La place doit son nom au palais d'Espagne, l'ambassade espagnole auprès du pape depuis le 17e siècle. L'escalier, construit de 1723 à 1726 par Francesco De Sanctis, a été financé grâce au legs d'un diplomate français, Étienne Gueffier : il devait relier le quartier espagnol à l'église française du sommet.","Au pied des marches, la fontaine de la Barcaccia, en forme de barque à demi coulée, a été réalisée en 1627 à 1629 par Pietro Bernini, le père de Gian Lorenzo, sans doute aidé de son fils. La faible pression de l'eau de l'Aqua Virgo empêchait les jets puissants : d'où cette barque presque au ras de l'eau."],"anecdotes":["Selon la légende, la fontaine rappelle une barque échouée là par la grande crue du Tibre de 1598.","Depuis 2019, il est interdit de s'asseoir sur les marches, sous peine d'amende.","Le poète anglais John Keats est mort en 1821 dans la maison à droite de l'escalier, aujourd'hui musée Keats-Shelley.","Chaque 8 décembre, les pompiers de Rome montent à la grande échelle déposer une couronne de fleurs au bras de la Vierge, sur la colonne de l'Immaculée, à quelques pas."],"regarder":["La maison de Keats, à droite de l'escalier vu d'en bas.","Les soleils et les abeilles des Barberini sculptés sur la Barcaccia."]},{"id":"arapacis","nom":"Ara Pacis et mausolée d'Auguste","sous":"L'autel de la Paix et le tombeau du premier empereur","jour":"mar","lat":41.906389,"lng":12.475556,"r":60,"wiki":"Ara Pacis","bref":"Dans le pavillon blanc et vitré au bord du Tibre se trouve l'autel de la Paix d'Auguste, consacré en 9 avant Jésus-Christ. En face, la grande butte ronde est le tombeau d'Auguste.","histoire":["Le Sénat décide de cet autel en 13 avant Jésus-Christ, au retour d'Auguste de ses campagnes en Gaule et en Espagne, pour célébrer la paix retrouvée. Ses reliefs montrent une procession où l'on reconnaît la famille impériale, enfants compris. Retrouvé en fragments au fil des siècles, il a été reconstitué en 1938, sous Mussolini, pour le bimillénaire de la naissance d'Auguste.","Le musée qui l'abrite, dessiné par l'architecte américain Richard Meier et ouvert en 2006, a été l'un des premiers bâtiments modernes construits dans le centre historique depuis la guerre, et il a beaucoup fait débattre.","Le mausolée d'Auguste, commencé en 28 avant Jésus-Christ, est le plus grand tombeau circulaire du monde romain. Il a été tour à tour forteresse, jardin, arène de corrida puis salle de concert. Restauré, il a rouvert au public en 2021."],"anecdotes":["Sur le mur extérieur du musée de l'Ara Pacis est gravé le texte des Res Gestae, le bilan de son règne rédigé par Auguste lui-même.","L'arrêt de bus Ripetta, d'où vous prendrez le bus 628 mardi, est juste à côté."],"regarder":["Sur la procession, les enfants de la famille impériale accrochés aux toges des adultes."]},{"id":"coronari","nom":"Via dei Coronari","sous":"La rue des pèlerins devenue rue des antiquaires","jour":"mar","lat":41.9005,"lng":12.46959,"r":60,"wiki":"Via dei Coronari","bref":"Cette rue droite suit le tracé d'une voie romaine et menait les pèlerins vers Saint-Pierre.","histoire":["Elle reprend la Via Recta, la rue droite qui traversait le Champ de Mars antique. Au Moyen Âge et à la Renaissance, des foules de pèlerins l'empruntaient pour gagner le pont Saint-Ange et la basilique Saint-Pierre.","Son nom vient des « coronari », les marchands de chapelets, les couronnes de prière, qui vendaient leurs objets pieux aux pèlerins. Depuis le 20e siècle, c'est la rue des antiquaires : meubles, tableaux et objets anciens se succèdent sur plusieurs centaines de mètres."],"anecdotes":["La petite place Fiammetta, au bout de la rue côté Tibre, porterait le nom de Fiammetta Michaelis, courtisane célèbre et maîtresse de César Borgia, qui vivait là.","Au-dessus de plusieurs carrefours, de petites madones encadrées, les « edicole », veillaient sur les passants et servaient aussi d'éclairage public la nuit."],"regarder":["Les vitrines des antiquaires et les madones des angles de rue."]},{"id":"chateau","nom":"Château Saint-Ange","sous":"Du tombeau d'Hadrien à la forteresse des papes","jour":"mar","lat":41.903044,"lng":12.466307,"r":70,"wiki":"Château Saint-Ange","bref":"Cette forteresse ronde était à l'origine le mausolée de l'empereur Hadrien, achevé en 139.","histoire":["Hadrien fait construire ce tombeau monumental pour lui et ses successeurs, et les cendres des empereurs y sont déposées jusqu'à Caracalla. Intégré aux murailles de la ville à la fin de l'Antiquité, il devient une forteresse, puis la citadelle des papes.","Selon la tradition, en 590, pendant une épidémie de peste, le pape Grégoire le Grand vit l'archange saint Michel remettre son épée au fourreau au sommet du monument : c'était le signe de la fin de l'épidémie. D'où le nom, et l'ange de bronze qui domine le château depuis 1753.","Un passage fortifié, le Passetto di Borgo, long d'environ 800 mètres, relie le château au Vatican. En 1527, pendant le sac de Rome par les troupes de Charles Quint, le pape Clément VII l'emprunta pour s'y réfugier. Le château servit aussi de prison : l'orfèvre Benvenuto Cellini s'en évada en 1538."],"anecdotes":["Le troisième acte de Tosca se termine ici : l'héroïne se jette du haut des remparts.","Au sommet, les appartements des papes sont ornés de fresques somptueuses, dont la salle Pauline, décorée pour Paul III.","La terrasse de l'Ange offre l'une des plus belles vues sur Rome et sur Saint-Pierre."],"regarder":["Le mur du Passetto, qui part du château en direction du Vatican.","L'ange de bronze au sommet, l'épée à la main."]},{"id":"pontange","nom":"Pont Saint-Ange","sous":"Dix anges de Bernin au-dessus du Tibre","jour":"mar","lat":41.901803,"lng":12.46645,"r":40,"wiki":"Pont Saint-Ange","bref":"Le pont construit par Hadrien pour accéder à son tombeau est bordé de dix anges baroques.","histoire":["Inauguré en 134 sous le nom de pont Aelius, il conserve ses trois arches centrales antiques. Pendant des siècles, c'était le grand passage des pèlerins vers Saint-Pierre.","En 1667 à 1669, le pape Clément IX charge Bernin de l'orner de dix anges portant chacun un instrument de la Passion du Christ : la couronne d'épines, les clous, la lance, l'éponge. Bernin dessine l'ensemble, et ses élèves sculptent la plupart des statues. Les statues de saint Pierre et saint Paul, à l'entrée côté ville, sont plus anciennes."],"anecdotes":["Bernin sculpta lui-même deux anges, celui de la couronne d'épines et celui de l'inscription. On les jugea trop beaux pour les laisser aux intempéries : les originaux sont dans l'église Sant'Andrea delle Fratte, et ce sont des copies sur le pont.","En 1450, pendant le Jubilé, une bousculade de pèlerins sur le pont fit près de 200 morts, écrasés ou noyés.","Sur la petite place à l'entrée du pont, on exécutait les condamnés. C'est là que fut décapitée en 1599 Beatrice Cenci, une jeune noble qui avait fait tuer son père violent. Son histoire a inspiré Stendhal et le poète Shelley."],"regarder":["L'ange à la couronne d'épines et l'ange à l'inscription : les copies des deux anges de Bernin."]},{"id":"pontesisto","nom":"Ponte Sisto","sous":"Le pont du pape Sixte IV et son œil de crue","jour":"mar","lat":41.892336,"lng":12.470794,"r":40,"wiki":"Pont Sisto","bref":"Ce pont piéton relie le quartier de Campo de' Fiori au Trastevere.","histoire":["Le pape Sixte IV le fait construire de 1473 à 1479 sur les ruines d'un pont antique, pour faciliter le passage des pèlerins venus au Jubilé de 1475. C'est le premier pont bâti à Rome depuis l'Antiquité."],"anecdotes":["Le grand trou rond au centre du pont, surnommé « l'occhialone », allège la structure et laisse passer l'eau des crues. Les Romains disaient que, quand l'eau atteignait ce trou, la ville allait être inondée.","Côté Trastevere, la place Trilussa, rendez-vous des jeunes Romains le soir, porte le nom d'un poète qui écrivait en dialecte romain."],"regarder":["La coupole de Saint-Pierre, depuis le milieu du pont."]},{"id":"trastevere","nom":"Santa Maria in Trastevere","sous":"L'une des plus anciennes églises de Rome","jour":"mar","lat":41.8895,"lng":12.4703,"r":50,"wiki":"Basilique Sainte-Marie-du-Trastevere","bref":"Sur la place la plus animée du Trastevere, cette basilique brille de ses mosaïques dorées, même la nuit.","histoire":["Selon la tradition, un premier lieu de culte chrétien fut fondé ici au 3e siècle par le pape Calixte Ier, ce qui en ferait l'une des plus anciennes églises de Rome. L'édifice actuel date du 12e siècle, sous le pape Innocent II. Les colonnes de granit de la nef ont été récupérées sur des monuments antiques.","À l'intérieur, les mosaïques de l'abside, du 12e siècle, et la série de la vie de la Vierge, par Pietro Cavallini vers 1290, sont parmi les plus belles de Rome. Sur la façade, une frise de mosaïque montre la Vierge allaitant l'Enfant, entourée de femmes portant des lampes."],"anecdotes":["Légende : en 38 avant Jésus-Christ, une source d'huile aurait jailli ici, signe annonçant la venue du Christ. Une inscription, Fons olei, marque l'endroit près de l'autel.","La fontaine de la place serait la plus ancienne de Rome encore en service ; Bramante, Bernin et Carlo Fontana, entre autres, l'ont restaurée.","Trastevere signifie au-delà du Tibre. C'était un quartier populaire d'artisans et de bateliers, fier de son dialecte et de ses traditions."],"regarder":["La frise de mosaïque de la façade, éclairée le soir.","Les mosaïques de Cavallini, sous l'abside."]},{"id":"minerve","nom":"Santa Maria sopra Minerva","sous":"La seule grande église gothique de Rome, et l'éléphant de Bernin","jour":"mer","lat":41.898056,"lng":12.478333,"r":35,"wiki":"Basilique de la Minerve","bref":"Juste derrière le Panthéon, cette église à la façade sobre cache un intérieur gothique au plafond bleu étoilé.","histoire":["Les Dominicains la construisent à partir de 1280, sur des ruines que l'on croyait celles d'un temple de Minerve, d'où son nom ; il s'agissait plutôt d'un sanctuaire d'Isis. C'est la seule grande église gothique de Rome.","Elle abrite, sous le maître-autel, le corps de sainte Catherine de Sienne, patronne de l'Italie et de l'Europe, ainsi que le tombeau du peintre Fra Angelico. À gauche du chœur se dresse le Christ ressuscité de Michel-Ange, achevé en 1521. Dans le couvent voisin, Galilée a été contraint d'abjurer ses thèses le 22 juin 1633."],"anecdotes":["Le Christ de Michel-Ange était nu : un pagne de bronze lui a été ajouté plus tard, par pudeur.","Devant l'église, l'éléphant portant un obélisque égyptien a été dessiné par Bernin en 1667. Les Romains l'appellent le « Pulcino della Minerva », le poussin de la Minerve. On raconte que Bernin a tourné son derrière vers le couvent des Dominicains, avec qui il s'était disputé.","Sur la façade, des plaques marquent la hauteur des grandes crues du Tibre ; la plus haute, celle de 1598, dépasse la tête d'un adulte.","La tête de sainte Catherine est restée à Sienne : seul son corps repose ici."],"regarder":["Les plaques de crues sur la façade.","La voûte bleue semée d'étoiles dorées."]},{"id":"vatican","nom":"Musées du Vatican et chapelle Sixtine","sous":"Des kilomètres de galeries, et le plafond de Michel-Ange","jour":"mer","lat":41.906389,"lng":12.454444,"r":90,"wiki":"Musées du Vatican","bref":"L'un des plus grands musées du monde, né de la collection d'antiques des papes. Le parcours se termine par la chapelle Sixtine.","histoire":["Le musée naît au début du 16e siècle avec le pape Jules II, qui expose dans une cour de son palais des statues antiques, dont le Laocoon, retrouvé en 1506 dans une vigne de l'Esquilin. Michel-Ange assista à sa découverte. Au 18e siècle, les papes Clément XIV et Pie VI créent le musée Pio-Clementino.","Sur le parcours : la galerie des Cartes géographiques, peinte de 1580 à 1583 avec 40 cartes de l'Italie, puis les chambres de Raphaël. Dans l'École d'Athènes, Platon aurait les traits de Léonard de Vinci, et Raphaël s'est représenté lui-même au bord de la fresque.","La chapelle Sixtine, construite de 1473 à 1481 pour le pape Sixte IV, qui lui a donné son nom, est décorée sur les murs par Botticelli, le Pérugin ou Ghirlandaio. Michel-Ange peint le plafond de 1508 à 1512, debout sur un échafaudage, la tête renversée, et non allongé comme le veut la légende. Il revient plus de vingt ans plus tard peindre le Jugement dernier, achevé en 1541. C'est ici que les cardinaux élisent le pape lors du conclave."],"anecdotes":["Dans le Jugement dernier, Michel-Ange s'est représenté dans la peau écorchée que tient saint Barthélemy.","Le maître des cérémonies Biagio da Cesena, qui trouvait les nus indécents, a été peint en Minos, juge des enfers, avec des oreilles d'âne et un serpent qui le mord.","Après le concile de Trente, le peintre Daniele da Volterra fut chargé de couvrir les nudités : on le surnomma « il Braghettone », le faiseur de culottes.","Dans la Sixtine, les photos sont interdites et le silence est demandé."],"regarder":["La Création d'Adam, au milieu du plafond : les deux doigts qui ne se touchent pas.","Le Laocoon, dans la cour octogonale du musée Pio-Clementino."]},{"id":"borgopio","nom":"Borgo Pio","sous":"Le vieux quartier des pèlerins, au pied du Vatican","jour":"mer","lat":41.903783,"lng":12.460527,"r":50,"wiki":"Borgo Pio","bref":"Cette rue piétonne, parallèle au Passetto, est le cœur du Borgo, l'ancien quartier des pèlerins entre le Tibre et Saint-Pierre.","histoire":["Le nom Borgo viendrait des pèlerins saxons venus d'Angleterre au 8e siècle, qui s'installèrent ici et appelaient leur quartier « burg ». Au 9e siècle, après le pillage de Saint-Pierre par des pirates sarrasins en 846, le pape Léon IV fait entourer le quartier de murailles : c'est la cité léonine.","La rue doit son nom au pape Pie IV, qui agrandit et réorganisa le quartier au 16e siècle. Elle est aujourd'hui bordée de trattorias et de boutiques d'objets religieux."],"anecdotes":["Le haut mur qui ferme les rues transversales porte le Passetto, le couloir fortifié qui relie le Vatican au château Saint-Ange.","Le nom de l'hôpital et de l'église Santo Spirito in Sassia, tout proches, rappelle la « schola Saxonum », l'hospice des pèlerins saxons."],"regarder":["Le Passetto, au-dessus des arcades, au bout des rues."]},{"id":"conciliazione","nom":"Via della Conciliazione","sous":"L'avenue qui a changé la vue sur Saint-Pierre","jour":"mer","lat":41.9023,"lng":12.462,"r":60,"wiki":"Via della Conciliazione","bref":"Cette avenue rectiligne relie le château Saint-Ange à la place Saint-Pierre. Elle n'existe que depuis 1950.","histoire":["Elle tient son nom des accords du Latran, signés en 1929 entre l'Italie de Mussolini et le Saint-Siège, qui ont créé l'État de la Cité du Vatican : c'est la conciliation entre l'Église et l'État italien.","Pour la percer, on a démoli de 1936 à 1950 la « Spina di Borgo », une bande de maisons médiévales et Renaissance qui séparait deux rues étroites. Les architectes Marcello Piacentini et Attilio Spaccarelli dessinent l'avenue, inaugurée pour le Jubilé de 1950."],"anecdotes":["Avant, on arrivait à Saint-Pierre par des ruelles sombres, et la place s'ouvrait d'un coup devant soi : l'effet de surprise voulu par Bernin a disparu avec l'avenue."],"regarder":["La coupole de Saint-Pierre, qui semble s'enfoncer derrière la façade à mesure que vous approchez."]},{"id":"placestpierre","nom":"Place Saint-Pierre","sous":"Les bras de Bernin ouverts sur le monde","jour":"jeu","lat":41.902183,"lng":12.457239,"r":90,"wiki":"Place Saint-Pierre","bref":"La grande place ovale, entourée de la colonnade de Bernin, peut accueillir des dizaines de milliers de fidèles.","histoire":["Bernin la conçoit pour le pape Alexandre VII et la construit de 1656 à 1667. Les deux colonnades, avec 284 colonnes sur quatre rangs et 140 statues de saints au sommet, figurent les bras de l'Église qui accueillent les fidèles.","L'obélisque central, sans hiéroglyphes, a été rapporté d'Égypte en 37 par l'empereur Caligula pour orner son cirque, où, selon la tradition, saint Pierre fut martyrisé. C'est le seul obélisque de Rome qui ne soit jamais tombé depuis l'Antiquité. En 1586, le pape Sixte V le fait déplacer ici par l'architecte Domenico Fontana : il fallut environ 900 hommes et 140 chevaux."],"anecdotes":["Cherchez les deux disques de pierre au sol, entre l'obélisque et chacune des fontaines : placé dessus, vous verrez les quatre rangées de colonnes s'aligner en une seule.","Légende : pendant l'érection de l'obélisque, le silence était imposé sous peine de mort. Les cordes se mirent à fumer, et un marin, Benedetto Bresca, cria de mouiller les cordes. Au lieu d'être puni, il fut récompensé : sa famille reçut le privilège de fournir les palmes du dimanche des Rameaux.","Les gardes suisses, en uniforme rayé bleu, jaune et rouge, protègent le pape depuis 1506.","Le dimanche à midi, le pape récite l'Angélus depuis une fenêtre du dernier étage du palais apostolique, à droite de la basilique."],"regarder":["Les disques de pierre près des fontaines.","Les deux horloges en haut de la façade de la basilique."]},{"id":"basiliquestpierre","nom":"Basilique Saint-Pierre","sous":"La plus grande église de la chrétienté, sur la tombe de Pierre","jour":"jeu","lat":41.902222,"lng":12.453417,"r":60,"wiki":"Basilique Saint-Pierre","bref":"Construite au-dessus de la tombe de l'apôtre Pierre, elle a demandé plus d'un siècle de travaux et le génie de Bramante, Michel-Ange et Bernin.","histoire":["Une première basilique est élevée par Constantin au 4e siècle au-dessus d'une nécropole où l'on vénérait la tombe de Pierre. En 1506, le pape Jules II pose la première pierre d'une nouvelle église, plus grandiose. Bramante, Raphaël, Sangallo puis Michel-Ange se succèdent. Michel-Ange dessine la coupole, achevée en 1590, après sa mort, par Giacomo della Porta. Carlo Maderno allonge la nef et construit la façade, et la basilique est consacrée en 1626.","La coupole culmine à près de 137 mètres au sommet de la croix. Son diamètre intérieur, environ 42 mètres, est légèrement inférieur à celui du Panthéon. Sous la coupole, le baldaquin de bronze de Bernin, haut d'environ 29 mètres, surmonte l'autel du pape, au-dessus de la tombe de Pierre.","Pour financer le chantier, l'Église multiplie la vente des indulgences : c'est ce qui provoque la révolte de Martin Luther en 1517 et la Réforme protestante."],"anecdotes":["La Pietà, dans la première chapelle à droite, a été sculptée par Michel-Ange à 24 ans. C'est sa seule œuvre signée, sur le ruban qui barre la poitrine de la Vierge : selon Vasari, il l'aurait fait après avoir entendu des visiteurs l'attribuer à un autre sculpteur. Depuis qu'un déséquilibré l'a frappée à coups de marteau en 1972, elle est protégée par une vitre.","Le pied droit de la statue de bronze de saint Pierre, dans la nef, est usé par des siècles de baisers et de caresses des pèlerins.","Dans le sol de la nef, des repères indiquent la longueur des plus grandes églises du monde, toutes plus courtes.","La Porte sainte, à droite sous le portique, ne s'ouvre que les années jubilaires : la dernière fois, de Noël 2024 au 6 janvier 2026."],"regarder":["La Pietà, juste à droite en entrant.","Les repères de longueur des grandes églises, dans le sol de la nef centrale."]},{"id":"agostino","nom":"Basilique Saint-Augustin","sous":"Un Caravage gratuit, à cinq minutes de l'hôtel","jour":"bonus","lat":41.900802,"lng":12.47426,"r":35,"wiki":"Basilique Saint-Augustin de Rome","bref":"Cette église de la Renaissance, au nord de la place Navone, cache la Madone des pèlerins du Caravage.","histoire":["Construite à la fin du 15e siècle, c'est l'une des premières églises de la Renaissance à Rome. Sa façade de travertin aurait été taillée en partie dans des pierres prises au Colisée.","Dans la première chapelle à gauche, la Madone des pèlerins, peinte vers 1604 à 1606, fit scandale : la Vierge, debout sur le seuil d'une maison ordinaire, apparaît à deux pèlerins agenouillés dont les pieds nus et sales sont tournés vers les fidèles."],"anecdotes":["Raphaël a peint sur un pilier de la nef le prophète Isaïe, très influencé par les prophètes de Michel-Ange à la Sixtine.","Près de l'entrée, la Madone de l'enfantement, sculptée par Jacopo Sansovino, est vénérée par les femmes enceintes et les couples qui désirent un enfant ; son pied est couvert d'ex-voto.","Sainte Monique, la mère de saint Augustin, y est enterrée."],"regarder":["Les pieds sales des pèlerins, au premier plan du tableau du Caravage."]},{"id":"pace","nom":"Santa Maria della Pace et cloître de Bramante","sous":"Raphaël et Bramante dans une ruelle","jour":"bonus","lat":41.900073,"lng":12.471597,"r":35,"wiki":"Cloître de Bramante","bref":"Derrière la place Navone, une petite église au porche en demi-cercle et, à côté, le premier chef-d'œuvre romain de Bramante.","histoire":["L'église a été construite à la fin du 15e siècle pour le pape Sixte IV. Au 17e siècle, Pierre de Cortone lui ajoute sa façade à portique arrondi et réaménage la petite place devant elle comme un décor de théâtre.","À l'intérieur, au-dessus de la première chapelle à droite, Raphaël a peint des Sibylles pour le banquier Agostino Chigi. Le cloître voisin, construit par Bramante vers 1500 à 1504, est sa première œuvre à Rome, avant qu'il ne dessine la nouvelle basilique Saint-Pierre. Il accueille aujourd'hui des expositions et un café."],"anecdotes":["Le nom de l'église rappelle une légende : une image de la Vierge, frappée par un passant, aurait saigné, et Sixte IV aurait promis de lui bâtir une église si la paix revenait en Italie.","La Via della Pace et ses cafés forment l'un des coins les plus animés du soir, à deux pas de l'hôtel."],"regarder":["La façade de Pierre de Cortone, en avancée comme une scène de théâtre."]},{"id":"chiesanuova","nom":"Chiesa Nuova","sous":"L'église de saint Philippe Neri, avec trois Rubens","jour":"bonus","lat":41.898233,"lng":12.469126,"r":40,"wiki":"Chiesa Nuova","bref":"La « nouvelle église », sur le Corso Vittorio Emanuele, est l'église des Oratoriens, fondés par saint Philippe Neri.","histoire":["Philippe Neri, prêtre florentin très populaire à Rome au 16e siècle, réunissait les fidèles pour prier, chanter et écouter des lectures. En 1575, le pape lui confie une vieille église, Santa Maria in Vallicella, qu'il fait reconstruire en grand : d'où son surnom d'église nouvelle.","À gauche de l'église, l'oratoire des Philippins, conçu par Borromini, accueillait ces réunions musicales. C'est de là que vient le mot « oratorio », le genre musical religieux de Haendel et de Bach."],"anecdotes":["Les trois tableaux du chœur sont de Rubens, entre 1606 et 1608. Sa première version, peinte sur toile, reflétait trop la lumière : il l'a refaite sur des plaques d'ardoise, qui ne brillent pas.","Philippe Neri était célèbre pour son humour : on raconte qu'il se rasait une moitié de barbe pour fuir les honneurs.","Les fresques de Pierre de Cortone font de la nef l'une des plus riches du baroque romain."],"regarder":["Le grand tableau de Rubens au-dessus du maître-autel, peint sur ardoise."]}];
+var DAYS = [
+  {k:'dim', label:'Dim. 22', date:'2026-11-22'},
+  {k:'lun', label:'Lun. 23', date:'2026-11-23'},
+  {k:'mar', label:'Mar. 24', date:'2026-11-24'},
+  {k:'mer', label:'Mer. 25', date:'2026-11-25'},
+  {k:'jeu', label:'Jeu. 26', date:'2026-11-26'},
+  {k:'bonus', label:'En chemin', date:''}
+];
+var DAY_NAME = {dim:'Dimanche 22', lun:'Lundi 23', mar:'Mardi 24', mer:'Mercredi 25', jeu:'Jeudi 26', bonus:'En chemin'};
+var LS_KEY = 'rome-a-pied-v1';
+var byId = {}; POIS.forEach(function(p){ byId[p.id] = p; });
+
+function loadStore(){ try{ var s = localStorage.getItem(LS_KEY); return s ? JSON.parse(s) : {}; }catch(e){ return {}; } }
+var loaded = loadStore();
+var store = Object.assign({heard:{}, mode:'voix', culte:true, vib:true, radius:1, rate:1, voice:'', tab:'', size:1, level:10}, loaded);
+if(!loaded.mode && loaded.auto===false) store.mode = 'lecture';
+delete store.auto;
+if(!store.heard || typeof store.heard !== 'object') store.heard = {};
+/* Lieux de culte et salles où l'on doit se taire : jamais de lecture automatique si l'option est cochée */
+var CULTE = {pantheon:1, saintlouis:1, andreavalle:1, ignace:1, minerve:1, aracoeli:1, mariemajeure:1, smpopolo:1, trastevere:1, basiliquestpierre:1, agostino:1, pace:1, chiesanuova:1, synagogue:1, vatican:1};
+function isSilent(p){ return store.mode==='lecture' || (!!store.culte && (!!CULTE[p.id] || !!p.culte)); }
+function saveStore(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(store)); }catch(e){} }
+
+var $ = function(id){ return document.getElementById(id); };
+var inFrame = false; try{ inFrame = window.self !== window.top; }catch(e){ inFrame = true; }
+
+var state = { started:false, pos:null, geo:'off', watchId:null, current:null, openedAt:0, manual:false, queue:[], speaking:false, wake:null, audio:null, voices:[] };
+
+/* ---------- Géométrie ---------- */
+function rad(x){ return x*Math.PI/180; }
+function distance(lat1,lng1,lat2,lng2){
+  var R=6371000, dLat=rad(lat2-lat1), dLng=rad(lng2-lng1);
+  var a=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(rad(lat1))*Math.cos(rad(lat2))*Math.sin(dLng/2)*Math.sin(dLng/2);
+  return 2*R*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+function bearing(lat1,lng1,lat2,lng2){
+  var y=Math.sin(rad(lng2-lng1))*Math.cos(rad(lat2));
+  var x=Math.cos(rad(lat1))*Math.sin(rad(lat2))-Math.sin(rad(lat1))*Math.cos(rad(lat2))*Math.cos(rad(lng2-lng1));
+  return (Math.atan2(y,x)*180/Math.PI+360)%360;
+}
+var DIRS=['nord','nord-est','est','sud-est','sud','sud-ouest','ouest','nord-ouest'];
+function dirName(b){ return DIRS[Math.round(b/45)%8]; }
+function distTo(p){ return state.pos ? distance(state.pos.lat,state.pos.lng,p.lat,p.lng) : null; }
+function fmtDist(m){ if(m==null) return ''; if(m<1000) return (Math.round(m/5)*5)+' m'; return (m/1000).toFixed(1).replace('.',',')+' km'; }
+
+/* ---------- Parole ---------- */
+var synth = ('speechSynthesis' in window) ? window.speechSynthesis : null;
+function frVoices(){ if(!synth) return []; return synth.getVoices().filter(function(v){ return /^fr/i.test(v.lang); }); }
+function pickVoice(){
+  var vs = frVoices(); if(!vs.length) return null;
+  if(store.voice){ for(var i=0;i<vs.length;i++){ if(vs[i].name===store.voice) return vs[i]; } }
+  var pref = vs.filter(function(v){ return /fr[-_]FR/i.test(v.lang); });
+  var g = (pref.length?pref:vs).filter(function(v){ return /google/i.test(v.name); });
+  return (g[0] || pref[0] || vs[0]);
+}
+function fillVoices(){
+  var sel = $('optVoice'); var vs = frVoices(); var cur = store.voice;
+  while(sel.options.length>1) sel.remove(1);
+  vs.forEach(function(v){ var o=document.createElement('option'); o.value=v.name; o.textContent=v.name+' ('+v.lang+')'; if(v.name===cur) o.selected=true; sel.appendChild(o); });
+}
+if(synth){ fillVoices(); try{ synth.addEventListener('voiceschanged', fillVoices); }catch(e){ synth.onvoiceschanged = fillVoices; } }
+
+function spokenText(p, full){
+  if(p.src==='wiki'){
+    var art = state.article; if(!art || art.key!==p.wiki) return p.nom + '. Article en cours de chargement.';
+    var parts = [p.nom + '.', art.intro.join(' ')];
+    art.sections.forEach(function(s){ if(full || s.anec){ parts.push(s.title + '.'); s.paras.forEach(function(x){ parts.push(x.h ? x.h + '.' : x.t); }); } });
+    if(!full && p.src==='wiki' && !art.sections.some(function(s){ return s.anec; })){
+      var h = art.sections.filter(function(s){ return /histoire|historique/i.test(s.title); })[0];
+      if(h){ parts.push(h.title + '.'); h.paras.forEach(function(x){ parts.push(x.h ? x.h + '.' : x.t); }); }
+    }
+    return parts.join(' ').replace(/[«»]/g,'').replace(/\s+/g,' ').trim();
+  }
+  var t = p.nom + '. ' + p.sous + '. ' + p.bref + ' ' + p.histoire.join(' ');
+  if(p.anecdotes && p.anecdotes.length) t += ' Quelques anecdotes. ' + p.anecdotes.join(' ');
+  if(p.regarder && p.regarder.length) t += ' À regarder. ' + p.regarder.join(' ');
+  return t.replace(/[«»]/g,'').replace(/\s+/g,' ').trim();
+}
+function chunk(text){
+  var parts = text.split(/(?<=[.!?;:])\s+/), out=[], cur='';
+  parts.forEach(function(s){ if(cur && (cur.length+s.length+1)>220){ out.push(cur); cur=s; } else { cur = cur ? cur+' '+s : s; } });
+  if(cur) out.push(cur); return out;
+}
+var speakToken = 0;
+function stopSpeech(){ speakToken++; if(synth){ try{ synth.cancel(); }catch(e){} } state.speaking=false; renderSpeakBtn(); }
+function speakPoi(p, full){
+  if(!synth){ showMsg('warn','Lecture impossible','Ce navigateur ne propose pas de voix de synthèse. Le texte reste affiché.'); return; }
+  stopSpeech();
+  var token = ++speakToken; var parts = chunk(spokenText(p, full)); var voice = pickVoice();
+  store.heard[p.id] = Date.now(); saveStore(); renderLists();
+  state.speaking = true; renderSpeakBtn();
+  parts.forEach(function(txt, i){
+    var u = new SpeechSynthesisUtterance(txt);
+    u.lang = voice ? voice.lang : 'fr-FR'; if(voice) u.voice = voice; u.rate = Number(store.rate)||1;
+    if(i===parts.length-1){ u.onend = function(){ if(token!==speakToken) return; state.speaking=false; renderSpeakBtn(); afterSpeech(); }; }
+    u.onerror = function(ev){ if(token!==speakToken) return; if(ev && (ev.error==='interrupted'||ev.error==='canceled')) return; state.speaking=false; renderSpeakBtn(); };
+    synth.speak(u);
+  });
+}
+function renderSpeakBtn(){ $('btnSpeak').textContent = state.speaking ? 'Arrêter la lecture' : 'Écouter'; }
+
+/* ---------- Alertes ---------- */
+function chime(){
+  try{
+    if(!state.audio) return; var ctx=state.audio, t=ctx.currentTime;
+    [660,880].forEach(function(f,i){ var o=ctx.createOscillator(), g=ctx.createGain(); o.type='sine'; o.frequency.value=f;
+      g.gain.setValueAtTime(0.0001,t+i*0.18); g.gain.exponentialRampToValueAtTime(0.22,t+i*0.18+0.02); g.gain.exponentialRampToValueAtTime(0.0001,t+i*0.18+0.35);
+      o.connect(g); g.connect(ctx.destination); o.start(t+i*0.18); o.stop(t+i*0.18+0.4); });
+  }catch(e){}
+}
+function buzz(){ if(store.vib && navigator.vibrate){ try{ navigator.vibrate([250,120,250]); }catch(e){} } }
+
+/* ---------- Monuments en direct (Wikidata + Wikipédia) ---------- */
+var WIKI = [];
+var curatedTitles = {}; POIS.forEach(function(p){ if(p.wiki) curatedTitles[normT(p.wiki)] = 1; });
+function normT(t){ return String(t||'').toLowerCase().replace(/_/g,' ').replace(/\s+/g,' ').trim(); }
+function allPois(){ return POIS.concat(WIKI); }
+var CLASSES = 'Q16970 Q16560 Q483453 Q174782 Q170980 Q839954 Q33506 Q12280 Q82117 Q4989906 Q179700 Q641226 Q44539 Q162875 Q3950 Q24398318 Q57821 Q24354 Q35112127 Q22698 Q143912 Q163687 Q6581615 Q13218676'.split(' ');
+var TILE_KEY = 'rome-tiles-v1', ART_KEY = 'rome-art-v1:', ART_IDX = 'rome-art-idx-v1';
+function lsGet(k){ try{ var s=localStorage.getItem(k); return s ? JSON.parse(s) : null; }catch(e){ return null; } }
+function lsSet(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); return true; }catch(e){ return false; } }
+var tiles = lsGet(TILE_KEY) || {};
+var live = { busy:false, pending:[], failed:0, lastErr:'' };
+function sparqlFor(lat, lng, km){
+  return 'SELECT DISTINCT ?item ?title ?lat ?lon ?sl ?desc WHERE { '
+   + 'SERVICE wikibase:around { ?item wdt:P625 ?loc . bd:serviceParam wikibase:center "Point('+lng.toFixed(5)+' '+lat.toFixed(5)+')"^^geo:wktLiteral . bd:serviceParam wikibase:radius "'+km+'" . } '
+   + '?article schema:about ?item ; schema:isPartOf <https://fr.wikipedia.org/> ; schema:name ?title . '
+   + '{ ?item wdt:P31/wdt:P279? ?c . VALUES ?c { ' + CLASSES.map(function(c){ return 'wd:'+c; }).join(' ') + ' } } UNION { ?item wdt:P1435 ?h } '
+   + '?item wikibase:sitelinks ?sl . '
+   + 'OPTIONAL { ?item schema:description ?desc FILTER(lang(?desc)="fr") } '
+   + 'BIND(geof:latitude(?loc) AS ?lat) BIND(geof:longitude(?loc) AS ?lon) }';
+}
+var CULTE_RE = /^(église|basilique|chapelle|oratoire|cathédrale|synagogue|mosquée|monastère|couvent|sanctuaire|baptistère)\b/i;
+function shortName(t){ return t.replace(/\s*\((rome|roma|italie)\)\s*$/i,'').trim(); }
+function parseRows(json){
+  var out = {}, rows = (json && json.results && json.results.bindings) || [];
+  rows.forEach(function(r){
+    var q = r.item.value.split('/').pop(), title = r.title.value;
+    if(out[q] || curatedTitles[normT(title)]) return;
+    var sl = Number(r.sl.value)||0, lat = Number(r.lat.value), lng = Number(r.lon.value);
+    if(!isFinite(lat) || !isFinite(lng)) return;
+    out[q] = { id:q, src:'wiki', nom:shortName(title), wiki:title, lat:lat, lng:lng, sl:sl,
+      desc: r.desc ? r.desc.value : '', r: sl>=40 ? 60 : (sl>=20 ? 45 : 30), culte: CULTE_RE.test(title) };
+  });
+  return Object.keys(out).map(function(k){ return out[k]; });
+}
+function mergeWiki(items){
+  var added = 0;
+  items.forEach(function(p){ if(!byId[p.id]){ byId[p.id]=p; WIKI.push(p); added++; } });
+  return added;
+}
+function tileOf(lat,lng){ return (Math.round(lat*100)/100).toFixed(2)+','+(Math.round(lng*100)/100).toFixed(2); }
+function loadCachedTiles(){ Object.keys(tiles).forEach(function(k){ mergeWiki(tiles[k].items||[]); }); }
+function wantTiles(lat,lng){
+  var base = [Math.round(lat*100)/100, Math.round(lng*100)/100], keys = [];
+  for(var i=-1;i<=1;i++) for(var j=-1;j<=1;j++){
+    var tl = base[0]+i/100, tg = base[1]+j/100;
+    if(distance(lat,lng,tl,tg) <= 900) keys.push({k:tl.toFixed(2)+','+tg.toFixed(2), lat:tl, lng:tg, d:distance(lat,lng,tl,tg)});
+  }
+  return keys.sort(function(a,b){ return a.d-b.d; });
+}
+function discover(lat,lng){
+  wantTiles(lat,lng).forEach(function(t){
+    var c = tiles[t.k]; if(c && (Date.now()-c.t) < 7*86400000) return;
+    if(live.pending.some(function(x){ return x.k===t.k; })) return;
+    live.pending.push(t);
+  });
+  pumpTiles();
+}
+function pumpTiles(){
+  if(live.busy || !live.pending.length) return;
+  if(navigator.onLine === false){ renderLiveCount(); return; }
+  var t = live.pending.shift(); live.busy = true; renderLiveCount();
+  var ctl = ('AbortController' in window) ? new AbortController() : null;
+  var timer = setTimeout(function(){ if(ctl) ctl.abort(); }, 30000);
+  var url = 'https://query.wikidata.org/sparql?format=json&query=' + encodeURIComponent(sparqlFor(t.lat, t.lng, 0.85));
+  fetch(url, {headers:{'Accept':'application/sparql-results+json'}, signal: ctl ? ctl.signal : undefined})
+    .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+    .then(function(j){
+      var items = parseRows(j); tiles[t.k] = {t:Date.now(), items:items};
+      if(!lsSet(TILE_KEY, tiles)){ var ks=Object.keys(tiles).sort(function(a,b){ return tiles[a].t-tiles[b].t; }); while(ks.length>4){ delete tiles[ks.shift()]; } lsSet(TILE_KEY, tiles); }
+      mergeWiki(items); live.failed = 0; live.lastErr = '';
+    })
+    .catch(function(e){ live.failed++; live.lastErr = (e && e.name==='AbortError') ? 'délai dépassé' : 'pas de réponse'; if(live.failed < 3) live.pending.push(t); })
+    .then(function(){ clearTimeout(timer); live.busy = false; renderLiveCount(); renderLists(); checkTriggers(); setTimeout(pumpTiles, live.failed ? 5000 : 800); });
+}
+window.addEventListener('online', function(){ live.failed = 0; if(state.pos) discover(state.pos.lat, state.pos.lng); });
+function renderLiveCount(){
+  var el = $('liveCount'); if(!el) return;
+  var n = state.pos ? WIKI.filter(function(p){ return distTo(p) <= 500; }).length : WIKI.length;
+  var txt = state.pos ? (n + ' monument' + (n>1?'s':'') + ' repéré' + (n>1?'s':'') + ' à moins de 500 m') : (WIKI.length + ' monuments en mémoire');
+  if(live.busy) txt += '. Recherche en cours...';
+  else if(live.lastErr) txt += '. Recherche impossible (' + live.lastErr + '), nouvel essai automatique.';
+  else if(navigator.onLine === false) txt += '. Hors connexion : seuls les lieux déjà chargés sont détectés.';
+  el.textContent = txt;
+}
+
+/* Article Wikipédia complet, en texte brut, sans résumé */
+var DROP_RE = /^(notes?|r[ée]f[ée]rences?|notes et r[ée]f[ée]rences|bibliographie|articles? connexes?|liens? externes?|voir aussi|annexes?|galerie|sources?|pour approfondir|liste des .*)$/i;
+var ANEC_RE = /anecdot|curiosit|l[ée]gende|insolite|particularit|myth|superstition|dans la culture|culture populaire|au cin[ée]ma|cin[ée]ma|litt[ée]rature|tradition/i;
+function parseExtract(title, text){
+  var lines = String(text||'').split('\n'), intro = [], sections = [], cur = null, dropLevel = 0;
+  lines.forEach(function(raw){
+    var line = raw.trim(); if(!line) return;
+    var m = line.match(/^(={2,6})\s*(.*?)\s*\1$/);
+    if(m){
+      var lvl = m[1].length, t = m[2];
+      if(dropLevel && lvl > dropLevel) return;
+      dropLevel = 0;
+      if(DROP_RE.test(t)){ dropLevel = lvl; cur = null; return; }
+      if(lvl === 2){ cur = {title:t, paras:[], anec: ANEC_RE.test(t)}; sections.push(cur); }
+      else { if(!cur){ cur = {title:t, paras:[], anec: ANEC_RE.test(t)}; sections.push(cur); } else { cur.paras.push({h:t}); if(ANEC_RE.test(t)) cur.anec = true; } }
+      return;
+    }
+    if(dropLevel) return;
+    if(/^Portail d/i.test(line)) return;
+    if(cur) cur.paras.push({t:line}); else intro.push(line);
+  });
+  sections = sections.filter(function(s){ return s.paras.some(function(x){ return x.t; }); });
+  sections.forEach(function(s){ while(s.paras.length && s.paras[s.paras.length-1].h) s.paras.pop(); });
+  return {key:title, intro:intro, sections:sections};
+}
+function cacheArticle(title, text){
+  var idx = lsGet(ART_IDX) || [];
+  idx = idx.filter(function(k){ return k!==title; }); idx.push(title);
+  var ok = lsSet(ART_KEY+title, text);
+  while(!ok && idx.length > 1){ var old = idx.shift(); try{ localStorage.removeItem(ART_KEY+old); }catch(e){} ok = lsSet(ART_KEY+title, text); }
+  while(idx.length > 80){ var o = idx.shift(); try{ localStorage.removeItem(ART_KEY+o); }catch(e){} }
+  lsSet(ART_IDX, idx);
+}
+var artInflight = {};
+function fetchArticle(title){
+  var cached = lsGet(ART_KEY+title);
+  if(typeof cached === 'string') return Promise.resolve(cached);
+  if(artInflight[title]) return artInflight[title];
+  var url = 'https://fr.wikipedia.org/w/api.php?action=query&prop=extracts&explaintext=1&exsectionformat=wiki&redirects=1&format=json&formatversion=2&origin=*&titles=' + encodeURIComponent(title);
+  artInflight[title] = fetch(url).then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+    .then(function(j){ var pg = j && j.query && j.query.pages && j.query.pages[0]; if(!pg || pg.missing || !pg.extract) throw new Error('vide'); cacheArticle(title, pg.extract); return pg.extract; })
+    .then(function(t){ delete artInflight[title]; return t; }, function(e){ delete artInflight[title]; throw e; });
+  return artInflight[title];
+}
+function addPara(parent, txt){ var e=document.createElement('p'); e.className='para'; e.textContent=txt; parent.appendChild(e); }
+function renderArticle(p, art){
+  var body = $('wBody'), toc = $('wToc'); clear(body); clear(toc);
+  var head = document.createElement('section'); art.intro.forEach(function(t){ addPara(head, t); }); body.appendChild(head);
+  var ordered = art.sections.filter(function(s){ return s.anec; }).concat(art.sections.filter(function(s){ return !s.anec; }));
+  ordered.forEach(function(s, i){
+    var sec = document.createElement('section'); sec.id = 'wsec'+i; if(s.anec) sec.className = 'anec';
+    var h = document.createElement('h3'); h.textContent = s.title; sec.appendChild(h);
+    s.paras.forEach(function(x){ if(x.h){ var hh=document.createElement('h4'); hh.textContent=x.h; sec.appendChild(hh); } else addPara(sec, x.t); });
+    body.appendChild(sec);
+    var b = document.createElement('button'); b.type='button'; b.className='tab'; b.textContent = s.title;
+    b.addEventListener('click', function(){ try{ sec.scrollIntoView({behavior:'smooth', block:'start'}); }catch(e){ sec.scrollIntoView(); } });
+    toc.appendChild(b);
+  });
+  toc.hidden = !ordered.length;
+  var nWords = (art.intro.join(' ') + ' ' + art.sections.map(function(s){ return s.paras.map(function(x){ return x.t||''; }).join(' '); }).join(' ')).split(/\s+/).length;
+  $('wStatus').textContent = 'Article Wikipédia complet, environ ' + nWords + ' mots, ' + art.sections.length + ' sections.' + (art.sections.some(function(s){ return s.anec; }) ? ' Les anecdotes et curiosités sont placées en premier.' : '');
+  var a = $('wAttr'); clear(a);
+  a.appendChild(document.createTextNode('Texte : article « ' + art.key + ' » de Wikipédia en français, affiché tel quel, licence CC BY-SA 4.0. '));
+  var l = document.createElement('a'); l.href = wikiUrl(art.key); l.target='_blank'; l.rel='noopener'; l.textContent = 'Voir l\'article et ses sources'; a.appendChild(l);
+}
+function showArticle(p, onReady){
+  state.article = null;
+  $('fArt').hidden = false; clear($('wBody')); clear($('wToc')); clear($('wAttr'));
+  $('wStatus').textContent = 'Chargement de l\'article complet...';
+  fetchArticle(p.wiki).then(function(text){
+    if(state.current !== p.id) return;
+    state.article = parseExtract(p.wiki, text); renderArticle(p, state.article);
+    if(onReady) onReady();
+  }).catch(function(){
+    if(state.current !== p.id) return;
+    $('wStatus').textContent = 'Impossible de charger l\'article (connexion ?). Touchez « Pour aller plus loin » pour l\'ouvrir dans Wikipédia.';
+  });
+}
+function prefetchNear(){
+  if(!state.pos || navigator.onLine === false) return;
+  WIKI.filter(function(p){ return distTo(p) <= 200; }).sort(function(a,b){ return distTo(a)-distTo(b); }).slice(0,3)
+    .forEach(function(p){ fetchArticle(p.wiki).catch(function(){}); });
+}
+
+/* ---------- Fiche ---------- */
+function clear(el){ while(el.firstChild) el.removeChild(el.firstChild); }
+function wikiUrl(title){ return 'https://fr.wikipedia.org/wiki/'+encodeURIComponent(title.replace(/ /g,'_')); }
+function openPoi(id, opts){
+  opts = opts || {}; var p = byId[id]; if(!p) return;
+  state.current = id; state.openedAt = Date.now(); state.manual = !opts.auto; state.showWiki = false;
+  state.queue = state.queue.filter(function(q){ return q!==id; });
+  var d = distTo(p), isWiki = p.src==='wiki';
+  $('fEyebrow').textContent = (d!=null ? fmtDist(d)+' | ' : '') + (isWiki ? 'Monument repéré autour de vous' : DAY_NAME[p.jour]);
+  $('fName').textContent = p.nom; $('fSub').textContent = isWiki ? (p.desc || '') : p.sous;
+  $('fSub').hidden = !$('fSub').textContent;
+  $('fCur').hidden = isWiki; $('fArt').hidden = !isWiki;
+  if(!isWiki){
+    $('fBref').textContent = p.bref;
+    var h=$('fHist'); clear(h); p.histoire.forEach(function(t){ var e=document.createElement('p'); e.className='para'; e.textContent=t; h.appendChild(e); });
+    var a=$('fAnec'); clear(a); p.anecdotes.forEach(function(t){ var e=document.createElement('li'); e.textContent=t; a.appendChild(e); });
+    var l=$('fLook'); clear(l); (p.regarder||[]).forEach(function(t){ var e=document.createElement('li'); e.textContent=t; l.appendChild(e); });
+    $('btnFull').hidden = false;
+  }
+  $('fMaps').href = 'https://www.google.com/maps/dir/?api=1&destination='+p.lat+','+p.lng+'&travelmode=walking';
+  $('fWiki').href = wikiUrl(p.wiki);
+  var f=$('fiche'); f.hidden=false; f.classList.remove('pop'); void f.offsetWidth; f.classList.add('pop');
+  refreshSilentNote();
+  var autoSpeak = function(){ if(state.current===id && !isSilent(p)) speakPoi(p); };
+  if(isWiki){ showArticle(p, opts.auto ? autoSpeak : null); }
+  if(opts.auto){
+    store.heard[id]=Date.now(); saveStore(); buzz();
+    if(!isSilent(p)){ chime(); if(!isWiki) setTimeout(autoSpeak, 700); }
+    else { stopSpeech(); }
+  } else { stopSpeech(); }
+  try{ f.scrollIntoView({behavior:'smooth', block:'start'}); }catch(e){ f.scrollIntoView(); }
+  renderQueue(); renderLists();
+}
+function closePoi(){ stopSpeech(); state.current=null; $('fiche').hidden=true; renderLists(); }
+function afterSpeech(){ if(state.queue.length){ setTimeout(nextInQueue, 1500); } }
+function nextInQueue(){
+  while(state.queue.length){
+    var id = state.queue.shift(); var p = byId[id]; var d = distTo(p);
+    if(d==null || d <= p.r*Number(store.radius)*2.5){ openPoi(id,{auto:true}); return; }
+  }
+  renderQueue();
+}
+function renderQueue(){
+  var q = state.queue.filter(function(id){ return id!==state.current; });
+  state.queue = q; var bar=$('queueBar');
+  if(!q.length){ bar.hidden=true; return; }
+  bar.hidden=false;
+  $('btnNext').textContent = 'Ouvrir maintenant';
+  $('queueTxt').textContent = 'Aussi tout près : ' + q.map(function(id){ return byId[id].nom; }).join(', ');
+}
+
+/* ---------- Déclenchement ---------- */
+function checkTriggers(){
+  if(!state.pos || state.pos.acc > 60) return;
+  var f = Number(store.radius)||1;
+  var lvl = Number(store.level); if(!isFinite(lvl)) lvl = 10;
+  var c = allPois().filter(function(p){ return p.src!=='wiki' || (lvl>=0 && p.sl>=lvl); })
+    .map(function(p){ return {p:p, d:distTo(p)}; })
+    .filter(function(x){ return x.d <= x.p.r*f && !store.heard[x.p.id] && x.p.id!==state.current && state.queue.indexOf(x.p.id)<0; })
+    .sort(function(a,b){ var pa = a.p.src==='wiki'?1:0, pb = b.p.src==='wiki'?1:0; return (pa-pb) || (a.d-b.d); });
+  if(!c.length) return;
+  var age = Date.now()-state.openedAt, cur = state.current ? byId[state.current] : null;
+  var busy = state.speaking || (cur && (state.manual ? age < 90000 : (isSilent(cur) && age < 120000)));
+  var startAt = 0;
+  if(!busy){ openPoi(c[0].p.id,{auto:true}); startAt = 1; }
+  for(var i=startAt;i<c.length && state.queue.length<4;i++){ state.queue.push(c[i].p.id); }
+  if(busy){ buzz(); }
+  renderQueue();
+}
+
+/* ---------- GPS ---------- */
+function setGeo(s, txt){
+  state.geo = s; var chip=$('gps'); chip.className = 'chip' + (s==='ok'?' ok':(s==='weak'||s==='wait')?' warn':(s==='denied'||s==='none')?' bad':'');
+  $('gpsTxt').textContent = txt;
+}
+function onPos(pos){
+  var c = pos.coords; state.pos = {lat:c.latitude, lng:c.longitude, acc:c.accuracy||9999, t:Date.now()};
+  if(state.pos.acc <= 60){ setGeo('ok','GPS actif, ± '+Math.round(state.pos.acc)+' m'); hideMsg(); }
+  else { setGeo('weak','Précision faible, ± '+Math.round(state.pos.acc)+' m'); }
+  $('nearSec').hidden = false;
+  if(!state.lastDisc || distance(state.lastDisc.lat, state.lastDisc.lng, state.pos.lat, state.pos.lng) > 300){ state.lastDisc = {lat:state.pos.lat, lng:state.pos.lng}; discover(state.pos.lat, state.pos.lng); }
+  prefetchNear(); checkTriggers(); renderLists(); renderLiveCount();
+}
+function onPosErr(err){
+  if(err && err.code===1){
+    setGeo('denied','Localisation bloquée');
+    var insecure = (window.isSecureContext === false) || /secure/i.test((err && err.message) || '');
+    if(insecure){
+      showMsg('bad','Chrome bloque le GPS pour un fichier ouvert depuis le téléphone','Ce n\'est pas un réglage : Chrome n\'autorise la position que pour les pages ouvertes depuis une adresse https. Ouvrez la version en ligne de la page. En attendant, touchez un lieu dans la liste pour le lire ou l\'écouter.');
+    } else if(inFrame){
+      showMsg('bad','Cette vue bloque le GPS','La page est affichée dans un cadre (page publiée dans Claude ou site qui l\'encadre) qui n\'a pas accès à la position. Ouvrez la page directement dans Chrome, depuis son adresse https. En attendant, touchez un lieu dans la liste.');
+    } else {
+      showMsg('bad','La position est refusée','Dans Chrome : touchez l\'icône à gauche de l\'adresse, puis Autorisations, et autorisez la position. Si rien n\'apparaît : menu de Chrome, Paramètres, Paramètres des sites, Position. Côté téléphone : Paramètres, Applications, Chrome, Autorisations, Position. En attendant, touchez un lieu dans la liste.');
+    }
+  } else if(err && err.code===2){
+    setGeo('wait','Signal GPS introuvable'); showMsg('warn','Signal GPS introuvable','Activez la localisation du téléphone, ou sortez dans une rue plus dégagée. La recherche continue.');
+  } else {
+    setGeo('wait','Recherche du GPS…');
+  }
+}
+function startGeo(){
+  if(!('geolocation' in navigator)){ setGeo('none','GPS indisponible'); showMsg('bad','Pas de GPS dans ce navigateur','Touchez un lieu dans la liste pour l\'écouter.'); return; }
+  setGeo('wait','Recherche du GPS…');
+  try{ state.watchId = navigator.geolocation.watchPosition(onPos, onPosErr, {enableHighAccuracy:true, maximumAge:3000, timeout:30000}); }
+  catch(e){ onPosErr({code:1}); }
+}
+
+/* ---------- Écran allumé ---------- */
+function requestWake(){
+  if(!('wakeLock' in navigator)){ $('wakeTxt').textContent='Écran : ce navigateur ne peut pas le garder allumé. Réglez la mise en veille du téléphone sur 10 minutes.'; return; }
+  navigator.wakeLock.request('screen').then(function(l){ state.wake=l; $('wakeTxt').textContent='Écran : maintenu allumé tant que la page est ouverte.'; l.addEventListener('release', function(){ state.wake=null; }); })
+  .catch(function(){ $('wakeTxt').textContent='Écran : impossible de le garder allumé ici. Réglez la mise en veille du téléphone sur 10 minutes.'; });
+}
+document.addEventListener('visibilitychange', function(){ if(document.visibilityState==='visible' && state.started && !state.wake) requestWake(); });
+
+/* ---------- Démarrage ---------- */
+function start(){
+  if(state.started) return; state.started = true;
+  try{ var AC = window.AudioContext || window.webkitAudioContext; if(AC){ state.audio = new AC(); if(state.audio.state==='suspended') state.audio.resume(); } }catch(e){}
+  if(synth && store.mode==='voix'){ try{ var u=new SpeechSynthesisUtterance('Balade démarrée.'); var v=pickVoice(); u.lang = v? v.lang : 'fr-FR'; if(v) u.voice=v; u.rate=Number(store.rate)||1; synth.speak(u); }catch(e){} }
+  requestWake(); startGeo();
+  $('btnStart').textContent = 'Balade en cours'; $('btnStart').disabled = true;
+  $('startNote').textContent = 'Les lieux déjà écoutés ne se redéclenchent pas. Vous pouvez tout réécouter depuis la liste.';
+}
+
+/* ---------- Messages ---------- */
+function showMsg(kind, title, body){ var m=$('geoMsg'); clear(m); m.className='notice '+kind; var s=document.createElement('strong'); s.textContent=title; m.appendChild(s); m.appendChild(document.createTextNode(body)); m.hidden=false; }
+function hideMsg(){ $('geoMsg').hidden=true; }
+
+/* ---------- Listes ---------- */
+function itemEl(p, withDist){
+  var b=document.createElement('button'); b.type='button'; b.className='item'+(store.heard[p.id]?' heard':'');
+  var d = distTo(p);
+  if(d!=null && d <= p.r*(Number(store.radius)||1)) b.className+=' near';
+  var t=document.createElement('span'); t.className='t'; t.textContent=p.nom;
+  if(p.src!=='wiki'){ var bd=document.createElement('span'); bd.className='badge'; bd.textContent='Programme'; t.appendChild(bd); }
+  b.appendChild(t);
+  var s=document.createElement('span'); s.className='s'; s.textContent = p.src==='wiki' ? (p.desc || 'Monument') : p.sous; b.appendChild(s);
+  var r=document.createElement('span'); r.className='d';
+  if(withDist && d!=null){ var bb=document.createElement('b'); bb.textContent=fmtDist(d); r.appendChild(bb); r.appendChild(document.createTextNode(dirName(bearing(state.pos.lat,state.pos.lng,p.lat,p.lng)))); }
+  else if(d!=null){ r.textContent=fmtDist(d); }
+  b.appendChild(r);
+  b.addEventListener('click', function(){ openPoi(p.id,{auto:false}); });
+  return b;
+}
+function renderLists(){
+  var nl=$('nearList'); clear(nl);
+  if(state.pos){
+    allPois().map(function(p){ return {p:p,d:distTo(p)}; }).sort(function(a,b){ return a.d-b.d; }).slice(0,20)
+      .forEach(function(x){ nl.appendChild(itemEl(x.p,true)); });
+  }
+  var tabs=$('tabs'); clear(tabs);
+  DAYS.forEach(function(dd){
+    var n = POIS.filter(function(p){ return p.jour===dd.k; }).length; if(!n) return;
+    var t=document.createElement('button'); t.type='button'; t.className='tab'; t.setAttribute('role','tab');
+    t.setAttribute('aria-selected', String(store.tab===dd.k)); t.textContent=dd.label+' ('+n+')';
+    t.addEventListener('click', function(){ store.tab=dd.k; saveStore(); renderLists(); });
+    tabs.appendChild(t);
+  });
+  var dl=$('dayList'); clear(dl);
+  POIS.filter(function(p){ return p.jour===store.tab; }).forEach(function(p){ dl.appendChild(itemEl(p,false)); });
+}
+
+/* ---------- Mode voix ou texte ---------- */
+function applySize(){ document.documentElement.style.setProperty('--fs', String(store.size||1)); }
+function refreshSilentNote(){
+  var sEl=$('fSilent'); if(!state.current){ sEl.hidden=true; return; }
+  var p=byId[state.current];
+  if(isSilent(p)){ sEl.textContent=(store.mode==='lecture' ? 'Mode texte seul' : 'Lieu de culte : lecture silencieuse')+'. Touchez « Écouter » pour la version audio.'; sEl.hidden=false; }
+  else { sEl.hidden=true; }
+}
+function renderMode(){
+  var m=store.mode, b=$('modeBtn');
+  b.setAttribute('data-mode', m); b.textContent = (m==='voix') ? 'Mode voix' : 'Mode texte';
+  b.setAttribute('aria-label', (m==='voix') ? 'Mode voix actif. Toucher pour passer en texte seul' : 'Mode texte seul actif. Toucher pour passer en mode voix');
+  Array.prototype.forEach.call(document.querySelectorAll('.segbtn'), function(s){ s.setAttribute('aria-checked', String(s.getAttribute('data-mode')===m)); });
+}
+function setMode(m){
+  store.mode = (m==='lecture') ? 'lecture' : 'voix'; saveStore();
+  if(store.mode==='lecture') stopSpeech();
+  renderMode(); refreshSilentNote(); renderQueue();
+}
+
+/* ---------- Réglages ---------- */
+function initSettings(){
+  $('optCulte').checked = !!store.culte; $('optVib').checked = !!store.vib; $('optSize').value = String(store.size);
+  $('optRadius').value = String(store.radius); $('optRate').value = String(store.rate); $('optLevel').value = String(store.level);
+  $('optLevel').addEventListener('change', function(e){ store.level=Number(e.target.value); saveStore(); checkTriggers(); });
+  $('optCulte').addEventListener('change', function(e){ store.culte=e.target.checked; saveStore(); refreshSilentNote(); });
+  $('optSize').addEventListener('change', function(e){ store.size=Number(e.target.value); saveStore(); applySize(); });
+  Array.prototype.forEach.call(document.querySelectorAll('.segbtn'), function(b){ b.addEventListener('click', function(){ setMode(b.getAttribute('data-mode')); }); });
+  $('modeBtn').addEventListener('click', function(){ setMode(store.mode==='voix' ? 'lecture' : 'voix'); });
+  $('optVib').addEventListener('change', function(e){ store.vib=e.target.checked; saveStore(); });
+  $('optRadius').addEventListener('change', function(e){ store.radius=Number(e.target.value); saveStore(); checkTriggers(); renderLists(); });
+  $('optRate').addEventListener('change', function(e){ store.rate=Number(e.target.value); saveStore(); });
+  $('optVoice').addEventListener('change', function(e){ store.voice=e.target.value; saveStore(); });
+  $('btnReset').addEventListener('click', function(){ $('resetConfirm').hidden=false; });
+  $('btnResetYes').addEventListener('click', function(){ store.heard={}; saveStore(); $('resetConfirm').hidden=true; renderLists(); checkTriggers(); });
+  $('btnTest').addEventListener('click', function(){
+    if(!state.started) start();
+    var list = POIS.filter(function(p){ return p.jour===store.tab; });
+    var p = list.filter(function(x){ return !store.heard[x.id]; })[0] || list[0] || POIS[0];
+    openPoi(p.id,{auto:true});
+  });
+}
+
+/* ---------- Initialisation ---------- */
+function defaultTab(){
+  var today = new Date(); var iso = today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+  for(var i=0;i<DAYS.length;i++){ if(DAYS[i].date===iso) return DAYS[i].k; }
+  return 'dim';
+}
+if(!store.tab || !POIS.some(function(p){ return p.jour===store.tab; })) store.tab = defaultTab();
+$('btnStart').addEventListener('click', start);
+$('btnSpeak').addEventListener('click', function(){ if(state.speaking){ stopSpeech(); } else if(state.current){ speakPoi(byId[state.current], true); } });
+$('btnFull').addEventListener('click', function(){ var p = byId[state.current]; if(!p) return; state.showWiki = true; $('btnFull').hidden = true; showArticle(p, null); });
+$('btnClose').addEventListener('click', closePoi);
+$('btnNext').addEventListener('click', function(){ stopSpeech(); nextInQueue(); });
+initSettings(); applySize(); renderMode(); loadCachedTiles(); renderLists(); renderLiveCount();
+if(window.isSecureContext === false){ $('startNote').textContent = 'Page ouverte comme fichier local : Chrome y bloque le GPS. La liste, la lecture et l\'écoute fonctionnent ; pour le mode automatique, ouvrez la version en ligne (adresse https).'; }
+else if(inFrame){ $('startNote').textContent = 'Dans cette vue, le GPS est bloqué : la page fonctionnera en mode liste. Pour le mode automatique, ouvrez la page directement dans Chrome, depuis son adresse https.'; }
+window.__romeGuide = { state: state, store: store, onPos: onPos, POIS: POIS, WIKI: WIKI, parseExtract: parseExtract, sparqlFor: sparqlFor };
+})();
+</script>
+</body></html>
